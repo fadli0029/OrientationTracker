@@ -1,0 +1,24 @@
+data_processing_constants:
+  vref: 3.300
+  acc_sensitivity: 300.0
+  gyro_sensitivity: 3.330
+  static_period: 5.000
+  adc_max: 1023
+training_parameters:
+  step_size: 0.001
+  num_iterations: 300
+  eps_numerical_stability: 0.0000001
+other_configs:
+  datasets:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 9
+  quaternion_eps_numerical_stability: 0.0000001
+  path_to_datasets: "data/"
+  gravity_constant: 9.81
