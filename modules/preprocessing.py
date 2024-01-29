@@ -61,14 +61,12 @@ def process_imu_data(
     acc_data = (imu_data_raw[:, :3] - bias[:3])*acc_sf
     gyro_data = (imu_data_raw[:, 3:6] - bias[3:])*gyro_sf
 
-    acc_data *= g
+    acc_data *= g # convert to m/s^2
     acc_data = acc_data.at[:, 0].set(-acc_data[:, 0])
     acc_data = acc_data.at[:, 1].set(-acc_data[:, 1])
-    acc_data = acc_data.at[:, 2].set(acc_data[:, 2] + g)
 
-    # in case gyro has 0 values
-    if jnp.any(gyro_data == 0):
-        gyro_data = gyro_data.at[jnp.where(gyro_data == 0)].set(1e-6)
+    # add gravity since we expect Az to be g during static period
+    acc_data = acc_data.at[:, 2].set(acc_data[:, 2] + g)
 
     return acc_data, gyro_data[:, [4, 5, 3]], imu_data_raw[:, -1]
 
@@ -121,5 +119,5 @@ def process_all_imu_datasets(
             "t_ts": timestamps
         }
     duration = time.time() - start
-    print(f"Done! Took {duration:.2f} seconds.\n")
+    print(f"Done! Plotting took {duration:.2f} seconds.\n")
     return processed_imu_data

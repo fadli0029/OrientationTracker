@@ -1,6 +1,7 @@
 import sys
 import pickle
 import numpy as np
+import jax.numpy as jnp
 import transforms3d as tf3d
 import matplotlib.pyplot as plt
 
@@ -20,7 +21,7 @@ def read_imu_data(dataset, path='data/'):
 
     # Reshape raw imu data to usual convention (in ML/Robotics to my knowledge)
     raw_imu_data = read_data(imu_file)
-    raw_imu_data = np.hstack(
+    raw_imu_data = jnp.hstack(
             (raw_imu_data['vals'].T, raw_imu_data['ts'].reshape(-1,1))
         )
     return raw_imu_data

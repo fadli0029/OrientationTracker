@@ -9,13 +9,6 @@ def qmult_jax(q1, q2):
     """
     Batched version of quaternion multiplication.
     """
-    assert q1.shape == q2.shape
-    
-    # If they're single quaternions, reshape them.
-    if q1.ndim == 1 and q2.ndim ==1:
-        q1 = q1.reshape(1, -1)
-        q2 = q2.reshape(1, -1)
-
     q1s = q1[..., 0]
     q1v = q1[..., 1:]
 

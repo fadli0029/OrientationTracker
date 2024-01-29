@@ -31,7 +31,8 @@ def optimize(
     processed_imu_dataset: dict,
     step_size=1e-3,
     num_iters=100,
-    eps=1e-6
+    eps=1e-6,
+    debug=False
 ):
     assert type(processed_imu_dataset) == dict,\
         "processed_imu_dataset must be a dictionary"
@@ -43,8 +44,8 @@ def optimize(
     w_ts = processed_imu_dataset["gyro"]
     t_ts = processed_imu_dataset["t_ts"]
 
-    q_motion = jnp.zeros((w_ts.shape[0], 4), dtype=jnp.float32)
-    q_motion = q_motion.at[0, 0].set(1.)
+    q_motion = jnp.zeros((w_ts.shape[0], 4), dtype=jnp.float64)
+    q_motion = q_motion.at[:, 0].set(1.)
     q_motion, exp_term = motion_model(q_motion, w_ts, t_ts)
     a_obs = observation_model(q_motion)
 
@@ -75,6 +76,7 @@ def cost_function(q, exp, acc_imu):
         )
     )**2
     term_2 = 0.5 * jnp.linalg.norm(acc_imu[1:, :] - observation_model(q))**2
+    jax.debug.print("Term 1: {}, Term 2: {}", jnp.round(term_1, 3), jnp.round(term_2, 3))
     return term_1 + term_2
 
 def motion_model(q, w_ts, t_ts):
@@ -100,8 +102,7 @@ def observation_model(qs):
     Returns:
     array: Observed acceleration.
     """
-    g = jnp.zeros_like(qs)
-    g = g.at[:, -1].set(9.81)
+    g = jnp.array([0., 0., 0., 9.81]).reshape(1, 4)
     result = qmult_jax(qinverse_jax(qs), qmult_jax(g, qs))
 
     return result[:, 1:]

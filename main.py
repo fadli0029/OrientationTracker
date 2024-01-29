@@ -1,7 +1,11 @@
 import yaml
+import time
 from modules.pgd import optimize
 from modules.preprocessing import *
 from modules.helpers import save_plot
+
+from jax import config
+config.update("jax_enable_x64", True)
 
 def load_config(path_to_config):
     with open(path_to_config, "r") as f:
@@ -33,13 +37,7 @@ def main(path_to_config="config.yaml"):
         other_configs["datasets"]
     )
 
-    # some bookeeping for plotting. We will track the following
-    # for all datasets:
-    # - costs:    the cost over iterations during optimization
-    # - q_optims: the optimized quaternion
-    # - q_motion: the quaternions estimate from motion model
-    # - a_estims: the acceleration from motion model
-    # - a_obsrvs: the acceleration estimate from observation model
+    # Find the optimal quaternions for each dataset
     q_optims, q_motion, a_estims, a_obsrvs, costs_record = {}, {}, {}, {}, {}
     for dataset in other_configs["datasets"]:
         q_opt, q_mot, a_est, a_obs, costs = optimize(
@@ -57,6 +55,7 @@ def main(path_to_config="config.yaml"):
 
     # Save the plots
     print("==========> 📊  Saving plots")
+    start = time.time()
     for dataset in other_configs["datasets"]:
         save_plot(
             q_optims[dataset],
@@ -67,7 +66,8 @@ def main(path_to_config="config.yaml"):
             processed_imu_datasets[dataset]["accs"],
             dataset
         )
-    print("🎉🎉🎉  Done!")
+    duration = time.time() - start
+    print(f"🎉🎉🎉  Done! (took {duration:.2f} seconds)")
 
 if __name__ == "__main__":
     main()
