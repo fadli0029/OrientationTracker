@@ -27,8 +27,7 @@ def main(path_to_config="config.yaml"):
         data_processing_constants["acc_sensitivity"],
         data_processing_constants["gyro_sensitivity"],
         data_processing_constants["static_period"],
-        data_processing_constants["adc_max"],
-        other_configs["gravity_constant"]
+        data_processing_constants["adc_max"]
     )
 
     # load all vicon datasets
@@ -64,7 +63,8 @@ def main(path_to_config="config.yaml"):
             a_obsrvs[dataset],
             vicon_datasets[dataset],
             processed_imu_datasets[dataset]["accs"],
-            dataset
+            dataset,
+            other_configs["save_image_folder"]
         )
     duration = time.time() - start
     print(f"🎉🎉🎉  Done! (took {duration:.2f} seconds)")

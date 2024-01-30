@@ -4,7 +4,7 @@
 import jax
 import time
 from jax import random
-from jax_quaternion import *
+from modules.jax_quaternion import *
 import transforms3d.quaternions as tq
 
 key = random.PRNGKey(0)
@@ -28,9 +28,10 @@ def test_qmult():
     q12 = qmult_jax(q1, q2)
     tq12 = tq.qmult(q1, q2)
     if not jnp.allclose(q12, tq12, atol=ATOL, rtol=RTOL):
-        print(f'Failed in single quaternion case: {q1}, {q2}')
+        print(f'❌❌❌ FAILED in single quaternion case: {q1}, {q2}')
         print(f'qmult_jax: {q12}')
         print(f'transforms3d: {tq12}')
+        return
 
     # batch of quaternions
     q1 = random_q_batch()
@@ -42,9 +43,10 @@ def test_qmult():
     for i in range(q1.shape[0]):
         tq12 = tq.qmult(q1[i], q2[i])
         if not jnp.allclose(q12[i], tq12, atol=ATOL, rtol=RTOL):
-            print(f'Failed in batch case: {q1[i]}, {q2[i]}')
+            print(f'❌❌❌ FAILED in batch case: {q1[i]}, {q2[i]}')
             print(f'qmult_jax: {q12[i]}')
             print(f'transforms3d: {tq12}')
+            break
     print(f'transforms3d time: {(time.time() - start):.3f}')
     print('PASSED: qmult')
 
@@ -54,9 +56,10 @@ def test_qinverse():
     qi = qinverse_jax(q)
     tqi = tq.qinverse(q)
     if not jnp.allclose(qi, tqi, atol=ATOL, rtol=RTOL):
-        print(f'Failed in single quaternion case: {q}')
+        print(f'❌❌❌ FAILED in single quaternion case: {q}')
         print(f'qinverse_jax: {qi}')
         print(f'transforms3d: {tqi}')
+        return
 
     # batch of quaternions
     q = random_q_batch()
@@ -67,9 +70,10 @@ def test_qinverse():
     for i in range(q.shape[0]):
         tqi = tq.qinverse(q[i])
         if not jnp.allclose(qi[i], tqi, atol=ATOL, rtol=RTOL):
-            print(f'Failed in batch case: {q[i]}')
+            print(f'❌❌❌ FAILED in batch case: {q[i]}')
             print(f'qinverse_jax: {qi[i]}')
             print(f'transforms3d: {tqi}')
+            break
     print(f'transforms3d time: {(time.time() - start):.3f}')
     print('PASSED: qinverse')
 
@@ -79,9 +83,10 @@ def test_qexp():
     qe = qexp_jax(q)
     tqe = tq.qexp(q)
     if not jnp.allclose(qe, tqe, atol=ATOL, rtol=RTOL):
-        print(f'Failed in single quaternion case: {q}')
+        print(f'❌❌❌ FAILED in single quaternion case: {q}')
         print(f'qexp_jax: {qe}')
         print(f'transforms3d: {tqe}')
+        return
 
     # batch of quaternions
     q = random_q_batch()
@@ -92,9 +97,10 @@ def test_qexp():
     for i in range(q.shape[0]):
         tqe = tq.qexp(q[i])
         if not jnp.allclose(qe[i], tqe, atol=ATOL, rtol=RTOL):
-            print(f'Failed in batch case: {q[i]}')
+            print(f'❌❌❌ FAILED in batch case: {q[i]}')
             print(f'qexp_jax: {qe[i]}')
             print(f'transforms3d: {tqe}')
+            break
     print(f'transforms3d time: {(time.time() - start):.3f}')
     print('PASSED: qexp')
 
@@ -104,9 +110,10 @@ def test_qlog():
     ql = qlog_jax(q)
     tql = tq.qlog(q)
     if not jnp.allclose(ql, tql, atol=ATOL, rtol=RTOL):
-        print(f'Failed in single quaternion case: {q}')
+        print(f'❌❌❌ FAILED in single quaternion case: {q}')
         print(f'qlog_jax: {ql}')
         print(f'transforms3d: {tql}')
+        return
 
     # batch of quaternions
     q = random_q_batch()
@@ -117,9 +124,10 @@ def test_qlog():
     for i in range(q.shape[0]):
         tql = tq.qlog(q[i])
         if not jnp.allclose(ql[i], tql, atol=ATOL, rtol=RTOL):
-            print(f'Failed in batch case: {q[i]}')
+            print(f'❌❌❌ FAILED in batch case: {q[i]}')
             print(f'qlog_jax: {ql[i]}')
             print(f'transforms3d: {tql}')
+            break
     print(f'transforms3d time: {(time.time() - start):.3f}')
     print('PASSED: qlog')
 
@@ -132,3 +140,5 @@ def run_tests():
     test_qexp()
     print("")
     test_qlog()
+
+run_tests()

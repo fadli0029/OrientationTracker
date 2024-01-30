@@ -8,8 +8,7 @@ def process_imu_data(
     acc_sens,
     gyro_sens,
     static_period,
-    adc_max,
-    g
+    adc_max
 ):
     """
     Process raw IMU data to get acceleration
@@ -37,7 +36,7 @@ def process_imu_data(
     # convert constants to appropiate units
     # --------------------------------------------------------------
     vref = vref*1000
-    gyro_sens = gyro_sens*(180./jnp.pi)
+    gyro_sens = gyro_sens*(180./np.pi)
 
     # --------------------------------------------------------------
     # compute bias
@@ -48,7 +47,7 @@ def process_imu_data(
     ]
 
     # compute the mean of the static portion
-    bias = jnp.mean(static_data[:, :-1], axis=0) # shape (6,)
+    bias = np.mean(static_data[:, :-1], axis=0) # shape (6,)
 
     # --------------------------------------------------------------
     # compute the physical values
@@ -57,31 +56,18 @@ def process_imu_data(
     acc_sf = (vref/adc_max)/acc_sens
     gyro_sf = (vref/adc_max)/gyro_sens
 
-    # Bias correction and conversion
+    # Bias correction and conversion for acc. data
     acc_data = (imu_data_raw[:, :3] - bias[:3])*acc_sf
-    gyro_data = (imu_data_raw[:, 3:6] - bias[3:])*gyro_sf
-
-    acc_data *= g # convert to m/s^2
-    acc_data = acc_data.at[:, 0].set(-acc_data[:, 0])
-    acc_data = acc_data.at[:, 1].set(-acc_data[:, 1])
-
+    # Axis correction (due to device design)
+    acc_data[:, 0] = -acc_data[:, 0]
+    acc_data[:, 1] = -acc_data[:, 1]
     # add gravity since we expect Az to be g during static period
-    acc_data = acc_data.at[:, 2].set(acc_data[:, 2] + g)
+    acc_data[:, 2] += 1.
 
-    return acc_data, gyro_data[:, [4, 5, 3]], imu_data_raw[:, -1]
-
-def load_all_vicon_datasets(path: str, datasets: list):
-    assert len(datasets) > 0, "No datasets provided!"
-    assert type(datasets) == list, "Datasets must be a list!"
-
-    print(f"==========> Loading {len(datasets)} Vicon datasets.")
-    start = time.time()
-    vicon_datasets = {}
-    for dataset in datasets:
-        vicon_datasets[dataset] = read_dataset(dataset, path=path, data_name='vicon')
-    duration = time.time() - start
-    print(f"Done! Took {duration:.2f} seconds.\n")
-    return vicon_datasets
+    # Bias correction and conversion for gyro. data
+    gyro_data = (imu_data_raw[:, 3:6] - bias[3:])
+    gyro_data[:, [0, 1, 2]] = gyro_data[:, [1, 2, 0]]*gyro_sf
+    return acc_data, gyro_data, imu_data_raw[:, -1]
 
 def process_all_imu_datasets(
     path: str,
@@ -90,8 +76,7 @@ def process_all_imu_datasets(
     acc_sens,
     gyro_sens,
     static_period,
-    adc_max,
-    g
+    adc_max
 ):
     assert len(datasets) > 0, "No datasets provided!"
     assert type(datasets) == list, "Datasets must be a list!"
@@ -110,8 +95,7 @@ def process_all_imu_datasets(
             acc_sens,
             gyro_sens,
             static_period,
-            adc_max,
-            g
+            adc_max
         )
         processed_imu_data[dataset] = {
             "accs": acc_data,
@@ -121,3 +105,17 @@ def process_all_imu_datasets(
     duration = time.time() - start
     print(f"Done! Plotting took {duration:.2f} seconds.\n")
     return processed_imu_data
+
+def load_all_vicon_datasets(path: str, datasets: list):
+    assert len(datasets) > 0, "No datasets provided!"
+    assert type(datasets) == list, "Datasets must be a list!"
+
+    print(f"==========> Loading {len(datasets)} Vicon datasets.")
+    start = time.time()
+    vicon_datasets = {}
+    for dataset in datasets:
+        vicon_datasets[dataset] = read_dataset(dataset, path=path, data_name='vicon')
+    duration = time.time() - start
+    print(f"Done! Took {duration:.2f} seconds.\n")
+    return vicon_datasets
+

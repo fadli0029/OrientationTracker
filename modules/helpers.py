@@ -1,3 +1,4 @@
+import os
 import sys
 import pickle
 import numpy as np
@@ -21,7 +22,7 @@ def read_imu_data(dataset, path='data/'):
 
     # Reshape raw imu data to usual convention (in ML/Robotics to my knowledge)
     raw_imu_data = read_data(imu_file)
-    raw_imu_data = jnp.hstack(
+    raw_imu_data = np.hstack(
             (raw_imu_data['vals'].T, raw_imu_data['ts'].reshape(-1,1))
         )
     return raw_imu_data
@@ -70,9 +71,14 @@ def save_plot(
     a_obsrv,
     vicon_data,
     accs_imu,
-    dataset
+    dataset,
+    save_image_folder
 ):
-    filename = 'plot_images/dataset_' + str(dataset) + '.png'
+    # First check if save_image_folder exists, if not, create it
+    if not os.path.exists(save_image_folder):
+        os.makedirs(save_image_folder)
+
+    filename = save_image_folder + 'dataset_' + str(dataset) + '.png'
     ts = np.array(list(range(len(q_optim))))
     fig, axs = plt.subplots(3, 2, figsize=(30, 10))
 
@@ -204,6 +210,8 @@ def plot_eulers(qs, vicon_data):
     axs[2].plot(eulers_vicon[:, 2], label='vicon')
     axs[2].set_title('Yaw')
     axs[2].legend()
+
+    fig.savefig("testing.png", bbox_inches='tight')
 
 def plot_acc_vs_imuacc(acc_data, imu_acc_data, ts, title='Acceleration'):
     """

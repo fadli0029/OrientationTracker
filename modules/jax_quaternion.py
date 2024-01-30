@@ -9,6 +9,11 @@ def qmult_jax(q1, q2):
     """
     Batched version of quaternion multiplication.
     """
+    if q1.ndim == 1:
+        q1 = q1[None, :]
+    if q2.ndim == 1:
+        q2 = q2[None, :]
+
     q1s = q1[..., 0]
     q1v = q1[..., 1:]
 
@@ -17,7 +22,10 @@ def qmult_jax(q1, q2):
 
     q3s = q1s * q2s - jnp.sum(q1v * q2v, axis=-1)
     q3v = q1s[..., None] * q2v + q2s[..., None] * q1v + jnp.cross(q1v, q2v)
-    return jnp.concatenate([q3s[..., None], q3v], axis=-1)
+    res = jnp.concatenate([q3s[..., None], q3v], axis=-1)
+    if res.shape[0] == 1:
+        res = res[0]
+    return res
 
 @jax.jit
 def qinverse_jax(q):

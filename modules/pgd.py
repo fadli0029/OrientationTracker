@@ -76,7 +76,7 @@ def cost_function(q, exp, acc_imu):
         )
     )**2
     term_2 = 0.5 * jnp.linalg.norm(acc_imu[1:, :] - observation_model(q))**2
-    jax.debug.print("Term 1: {}, Term 2: {}", jnp.round(term_1, 3), jnp.round(term_2, 3))
+    # jax.debug.print("Term 1: {}, Term 2: {}", jnp.round(term_1, 3), jnp.round(term_2, 3))
     return term_1 + term_2
 
 def motion_model(q, w_ts, t_ts):
@@ -88,7 +88,7 @@ def motion_model(q, w_ts, t_ts):
     tau_ts = (t_ts[1:] - t_ts[:-1]).reshape(-1, 1)
     exp_term = qexp_jax(jnp.hstack((jnp.zeros((w_ts.shape[0]-1, 1)), w_ts[:-1] * tau_ts / 2)))
     for i in range(w_ts.shape[0]-1):
-        q = q.at[i+1].set(tq.qmult(q[i], exp_term[i]))
+        q = q.at[i+1].set(qmult_jax(q[i], exp_term[i]))
     return q, exp_term
 
 @jit
@@ -102,7 +102,6 @@ def observation_model(qs):
     Returns:
     array: Observed acceleration.
     """
-    g = jnp.array([0., 0., 0., 9.81]).reshape(1, 4)
+    g = jnp.array([0., 0., 0., 1.]).reshape(1, 4)
     result = qmult_jax(qinverse_jax(qs), qmult_jax(g, qs))
-
     return result[:, 1:]
