@@ -13,6 +13,7 @@
 
 import yaml
 import time
+from tqdm import tqdm
 from modules.pgd import optimize
 from modules.preprocessing import *
 from modules.utils import save_plot
@@ -50,10 +51,14 @@ def main(path_to_config="config.yaml"):
     )
 
     # Find the optimal quaternions for each dataset
+    print("===============================")
+    print("Performing orientation tracking")
+    print("===============================")
+    start = time.time()
     q_optims, q_motion, a_estims, a_obsrvs, costs_record = {}, {}, {}, {}, {}
     for dataset in other_configs["datasets"]:
+        print(f"==========> 🚀  Finding the optimal quaternions for dataset {dataset}")
         q_opt, q_mot, a_est, a_obs, costs = optimize(
-            dataset,
             processed_imu_datasets[dataset],
             step_size=training_parameters["step_size"],
             num_iters=training_parameters["num_iterations"],
@@ -64,11 +69,19 @@ def main(path_to_config="config.yaml"):
         a_estims[dataset]     = a_est
         a_obsrvs[dataset]     = a_obs
         costs_record[dataset] = costs
+    end = time.time()
+    duration = end - start
+    # Find duration in minutes and seconds
+    minutes = int(duration // 60)
+    seconds = duration % 60
+    print(f"==========> ✅  Done! Total duration for {len(other_configs['datasets'])} datasets: {minutes}m {seconds:.2f}s")
+    print("")
 
     # Save the plots
-    print("==========> 📊  Saving plots")
-    start = time.time()
-    for dataset in other_configs["datasets"]:
+    pbar = tqdm(other_configs["datasets"], desc="==========> 📊  Saving plots", unit="plot")
+    for dataset in pbar:
+        iter_start = time.time()
+
         save_plot(
             q_optims[dataset],
             q_motion[dataset],
@@ -79,8 +92,13 @@ def main(path_to_config="config.yaml"):
             dataset,
             other_configs["save_image_folder"]
         )
-    duration = time.time() - start
-    print(f"🎉🎉🎉  Done! (took {duration:.2f} seconds)")
+
+        iter_end = time.time()
+        iter_duration = iter_end - iter_start
+
+        # Update progress bar with iteration duration
+        pbar.set_postfix(time=f"{iter_duration:.4f}s")
+    print(f"==========> ✅  Done! All plots saved to {other_configs['save_image_folder']}")
 
 if __name__ == "__main__":
     main()

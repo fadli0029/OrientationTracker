@@ -14,6 +14,7 @@
 
 import time
 import jax
+from tqdm import tqdm
 import jax.numpy as jnp
 from .jax_quaternion import *
 from jax import value_and_grad, jit
@@ -46,7 +47,8 @@ def pgd(
     """
     costs = []
     q = q_motion[1:]
-    for _ in range(num_iters):
+    for _ in tqdm(range(num_iters), desc="PGD Iterations", unit="iter"):
+    # for _ in range(num_iters):
         cost, loss_grad = value_and_grad(cost_function)(q, exp_term, a_ts)
         q = q.at[:].set(q-(loss_grad*step_size))
 
@@ -58,7 +60,6 @@ def pgd(
     return q, cost
 
 def optimize(
-    dataset: int,
     processed_imu_dataset: dict,
     step_size=1e-3,
     num_iters=100,
@@ -70,7 +71,6 @@ def optimize(
     IMU measurement and the projected gradient descent (PGD) algorithm.
 
     Args:
-        dataset:               the dataset number
         processed_imu_dataset: the processed IMU dataset
         step_size:             the step size for the gradient descent
         num_iters:             the number of iterations for the optimization
@@ -89,7 +89,6 @@ def optimize(
 
     start = time.time()
 
-    print(f"==========> 🚀🚀🚀  Finding the optimal quaternions for dataset {dataset}")
     a_ts = processed_imu_dataset["accs"]
     w_ts = processed_imu_dataset["gyro"]
     t_ts = processed_imu_dataset["t_ts"]
@@ -110,7 +109,7 @@ def optimize(
     a_estim = observation_model(q_optim)
 
     opt_duration = time.time() - start
-    print(f"Finished optimizing! Took {opt_duration:.2f}.")
+    print(f"Finished optimizing! Took {opt_duration:.2f} seconds.")
     print("")
     return q_optim, q_motion, a_estim, a_obs, costs
 
