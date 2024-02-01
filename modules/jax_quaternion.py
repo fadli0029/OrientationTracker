@@ -1,10 +1,22 @@
 import jax
 import jax.numpy as jnp
 
-# Numerical stability
+USE_JIT = True
+
+def use_jit(q_func):
+    """
+    A decorator to turn JIT off for
+    jax_quaternion_test.py
+    """
+    if USE_JIT:
+        return jax.jit(q_func)
+    else:
+        return q_func
+
+# numerical stability constant
 EPS = 1e-6
 
-@jax.jit
+@use_jit
 def qmult_jax(q1, q2):
     """
     Batched version of quaternion multiplication.
@@ -27,7 +39,7 @@ def qmult_jax(q1, q2):
         res = res[0]
     return res
 
-@jax.jit
+@use_jit
 def qinverse_jax(q):
     """
     Batched version of quaternion inverse.
@@ -36,7 +48,7 @@ def qinverse_jax(q):
     q_norm_sq = (jnp.linalg.norm(q, axis=-1, keepdims=True)**2) + EPS
     return q_conj / q_norm_sq
 
-@jax.jit
+@use_jit
 def qexp_jax(q):
     """
     Batched version of quaternion exponential.
@@ -48,7 +60,7 @@ def qexp_jax(q):
     q_term = jnp.concatenate([jnp.cos(qv_norm), qv_normed], axis=-1)
     return jnp.exp(q[..., :1]) * q_term
 
-@jax.jit
+@use_jit
 def qlog_jax(q):
     """
     Batched version of quaternion logarithm.
@@ -60,5 +72,3 @@ def qlog_jax(q):
     q_norm = jnp.linalg.norm(q, axis=-1, keepdims=True) + EPS
     q_term = jnp.concatenate([jnp.log(q_norm), qv_normed * jnp.arccos(q[..., :1] / q_norm)], axis=-1)
     return q_term
-
-

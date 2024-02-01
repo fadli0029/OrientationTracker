@@ -1,0 +1,6 @@
+jax==0.4.23
+matplotlib==3.4.3
+PyYAML==6.0.1
+transforms3d==0.4.1
+numpy==1.23.5
+jaxlib==0.4.23

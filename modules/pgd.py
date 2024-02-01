@@ -50,13 +50,6 @@ def optimize(
     q_motion, exp_term = motion_model(q_motion, w_ts, t_ts)
     a_obs = observation_model(q_motion)
 
-    # Try sensor fusion
-    # print(f"Running sensor fusion for dataset {dataset}...")
-    # tau_ts = (t_ts[1:] - t_ts[:-1]).reshape(-1, 1)
-    # q_motion = sensor_fusion(w_ts, a_ts, tau_ts, alpha=0.5)
-    # a_obs = observation_model(q_motion)
-    # exp_term = qexp_jax(jnp.hstack((jnp.zeros((w_ts.shape[0]-1, 1)), w_ts[:-1] * tau_ts / 2)))
-
     # Print all shapes
     q_optim, costs = pgd(
         q_motion,
@@ -84,7 +77,6 @@ def cost_function(q, exp, acc_imu):
         )
     )**2
     term_2 = 0.5 * jnp.linalg.norm(acc_imu[1:, :] - observation_model(q))**2
-    jax.debug.print("Term 1: {}, Term 2: {}", jnp.round(term_1, 3), jnp.round(term_2, 3))
     return term_1 + term_2
 
 def motion_model(q, w_ts, t_ts):

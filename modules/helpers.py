@@ -80,7 +80,7 @@ def save_plot(
 
     filename = save_image_folder + 'dataset_' + str(dataset) + '.png'
     ts = np.array(list(range(len(q_optim))))
-    fig, axs = plt.subplots(3, 2, figsize=(30, 10))
+    fig, axs = plt.subplots(3, 2, figsize=(20, 10))
 
     # Plotting the acceleration data
     axs[0, 0].plot(ts, a_estims[:, 0],  label='Optimized (Ax)',   color='r')
