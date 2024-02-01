@@ -1,3 +1,16 @@
+# -------------------------------------------------------------------------
+# Author: Muhammad Fadli Alim Arsani
+# Email: fadlialim0029[at]gmail.com
+# File: jax_quaternion_test.py
+# Description: This file contains the test for the quaternion operations
+#              implemented in jax_quaternion.py. The test is done using
+#              pytest.
+# Misc: This is also part of one of the projects in the course
+#       "Sensing and Estimation in Robotics" taught by Prof. Nikolay
+#       Atanasov @UC San Diego.
+#       https://natanaso.github.io/ece276a/index.html
+# -------------------------------------------------------------------------
+
 import pytest
 import jax
 from jax import random

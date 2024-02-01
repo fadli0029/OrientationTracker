@@ -1,8 +1,21 @@
+# -------------------------------------------------------------------------
+# Author: Muhammad Fadli Alim Arsani
+# Email: fadlialim0029[at]gmail.com
+# File: preprocessing.py
+# Description: This is the main file to run the project. It will load the
+#              config file, process the IMU datasets, find the optimal
+#              quaternions for each dataset, and save the plots.
+# Misc: This is also part of one of the projects in the course
+#       "Sensing and Estimation in Robotics" taught by Prof. Nikolay
+#       Atanasov @UC San Diego.
+#       https://natanaso.github.io/ece276a/index.html
+# -------------------------------------------------------------------------
+
 import yaml
 import time
 from modules.pgd import optimize
 from modules.preprocessing import *
-from modules.helpers import save_plot
+from modules.utils import save_plot
 
 from jax import config
 config.update("jax_enable_x64", True)

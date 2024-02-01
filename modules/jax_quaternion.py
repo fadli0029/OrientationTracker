@@ -1,3 +1,18 @@
+# -------------------------------------------------------------------------
+# Author: Muhammad Fadli Alim Arsani
+# Email: fadlialim0029[at]gmail.com
+# File: jax_quaternion.py
+# Description: This file contains the implementation of quaternion
+#              operations using JAX. It support both batch and single
+#              quaternion (or quaternions pairs) operations. The supported
+#              operations are quaternion multiplication, quaternion inverse,
+#              quaternion exponential, and quaternion logarithm.
+# Misc: This is also part of one of the projects in the course
+#       "Sensing and Estimation in Robotics" taught by Prof. Nikolay
+#       Atanasov @UC San Diego.
+#       https://natanaso.github.io/ece276a/index.html
+# -------------------------------------------------------------------------
+
 import jax
 import jax.numpy as jnp
 
@@ -7,6 +22,14 @@ def use_jit(q_func):
     """
     A decorator to turn JIT off for
     jax_quaternion_test.py
+
+    Args:
+        q_func: function, a function that
+
+    Returns:
+        function, a function that is JIT-ed
+        or not depending on the value of
+        USE_JIT
     """
     if USE_JIT:
         return jax.jit(q_func)
@@ -20,11 +43,23 @@ EPS = 1e-6
 def qmult_jax(q1, q2):
     """
     Batched version of quaternion multiplication.
+
+    Args:
+        q1: jnp.ndarray, shape (..., 4)
+        q2: jnp.ndarray, shape (..., 4)
+
+    Returns:
+        jnp.ndarray, shape (..., 4)
     """
     if q1.ndim == 1:
         q1 = q1[None, :]
     if q2.ndim == 1:
         q2 = q2[None, :]
+
+    assert q1.shape[-1] == 4, "Quaternion input given\
+        is not a valid quaternion."
+    assert q2.shape[-1] == 4, "Quaternion input given\
+        is not a valid quaternion."
 
     q1s = q1[..., 0]
     q1v = q1[..., 1:]
@@ -43,7 +78,16 @@ def qmult_jax(q1, q2):
 def qinverse_jax(q):
     """
     Batched version of quaternion inverse.
+
+    Args:
+        q: jnp.ndarray, shape (..., 4)
+
+    Returns:
+        jnp.ndarray, shape (..., 4)
     """
+    assert q.shape[-1] == 4, "Quaternion input given\
+        is not a valid quaternion."
+
     q_conj = jnp.concatenate([q[..., :1], -q[..., 1:]], axis=-1)
     q_norm_sq = (jnp.linalg.norm(q, axis=-1, keepdims=True)**2) + EPS
     return q_conj / q_norm_sq
@@ -52,7 +96,16 @@ def qinverse_jax(q):
 def qexp_jax(q):
     """
     Batched version of quaternion exponential.
+
+    Args:
+        q: jnp.ndarray, shape (..., 4)
+
+    Returns:
+        jnp.ndarray, shape (..., 4)
     """
+    assert q.shape[-1] == 4, "Quaternion input given\
+        is not a valid quaternion."
+
     qv = q[..., 1:]
     qv_norm = jnp.linalg.norm(qv, axis=-1, keepdims=True) + EPS
     qv_normed = qv / qv_norm
@@ -64,7 +117,16 @@ def qexp_jax(q):
 def qlog_jax(q):
     """
     Batched version of quaternion logarithm.
+
+    Args:
+        q: jnp.ndarray, shape (..., 4)
+
+    Returns:
+        jnp.ndarray, shape (..., 4)
     """
+    assert q.shape[-1] == 4, "Quaternion input given\
+        is not a valid quaternion."
+
     qv = q[..., 1:]
     qv_norm = jnp.linalg.norm(qv, axis=-1, keepdims=True) + EPS
     qv_normed = qv / qv_norm

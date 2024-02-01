@@ -1,3 +1,18 @@
+# -------------------------------------------------------------------------
+# Author: Muhammad Fadli Alim Arsani
+# Email: fadlialim0029[at]gmail.com
+# File: utils.py
+# Description: This file contains utility functions for reading data and
+#              saving the plot of the optimized, observed, and IMU-measured
+#              acceleration data, and the RPY angles of the optimized
+#              quaternion, RPY angles of the quaternions from motion model,
+#              and RPY angles from VICON Motion Capture System.
+# Misc: This is also part of one of the projects in the course
+#       "Sensing and Estimation in Robotics" taught by Prof. Nikolay
+#       Atanasov @UC San Diego.
+#       https://natanaso.github.io/ece276a/index.html
+# -------------------------------------------------------------------------
+
 import os
 import sys
 import pickle
@@ -7,20 +22,39 @@ import transforms3d as tf3d
 import matplotlib.pyplot as plt
 
 def read_data(fname):
+    """
+    Read the data from the file and return it
+
+    Args:
+        fname (str): file name
+
+    Returns:
+        d: data
+    """
     d = []
     with open(fname, 'rb') as f:
         if sys.version_info[0] < 3:
             d = pickle.load(f)
         else:
-            d = pickle.load(f, encoding='latin1')  # needed for python 3
+            d = pickle.load(f, encoding='latin1') # needed for python 3
     return d
 
 def read_imu_data(dataset, path='data/'):
+    """
+    Read the imu data from the dataset and return it
+
+    Args:
+        dataset (int): dataset number
+        path (str): path to the data folder
+
+    Returns:
+        raw_imu_data: raw imu data of shape (N, 7)
+    """
     dataset = str(dataset)
 
     imu_file = path + "imu/imuRaw" + dataset + ".p"
 
-    # Reshape raw imu data to usual convention (in ML/Robotics to my knowledge)
+    # Reshape raw imu data to usual convention (in ML/Robotics)
     raw_imu_data = read_data(imu_file)
     raw_imu_data = np.hstack(
             (raw_imu_data['vals'].T, raw_imu_data['ts'].reshape(-1,1))
@@ -28,10 +62,22 @@ def read_imu_data(dataset, path='data/'):
     return raw_imu_data
 
 def read_vicon_data(dataset, path='data/'):
+    """
+    Read the vicon data from the dataset and return it
+
+    Args:
+        dataset (int): dataset number
+        path (str): path to the data folder
+
+    Returns:
+        vicon_data: a dictionary with keys 'rots' and 'ts',
+        such that 'rots' is a numpy array of shape (N, 3, 3)
+        and 'ts' is a numpy array of shape (N,)
+    """
     dataset = str(dataset)
     vicon_file = path + "vicon/viconRot" + dataset + ".p"
 
-    # Reshape vicon data to usual convention (in ML/Robotics to my knowledge)
+    # Reshape vicon data to usual convention (in ML/Robotics)
     vicon_data = read_data(vicon_file)
     vicon_data['rots'] = np.transpose(vicon_data['rots'], (2, 0, 1))
     vicon_data['ts'] = vicon_data['ts'].reshape(-1,)
@@ -74,7 +120,26 @@ def save_plot(
     dataset,
     save_image_folder
 ):
-    # First check if save_image_folder exists, if not, create it
+    """
+    Save the plot of the optimized, observed, and IMU-measured acceleration
+    data, and the RPY angles of the optimized quaternion, RPY angles of the
+    quaternions from motion model, and RPY angles from VICON Motion Capture
+    System.
+
+    Args:
+        q_optim: optimized quaternion
+        q_motion: quaternion from motion model
+        a_estims: estimated acceleration
+        a_obsrv: observed acceleration
+        vicon_data: a dictionary with keys 'rots' and 'ts',
+        accs_imu: IMU-measured acceleration
+        dataset: dataset number
+        save_image_folder: folder to save the image
+
+    Returns:
+        None
+    """
+    # First check if save_image_folder exists; if not, create it
     if not os.path.exists(save_image_folder):
         os.makedirs(save_image_folder)
 
@@ -132,108 +197,17 @@ def save_plot(
 
     fig.savefig(filename, bbox_inches='tight')
 
-def plot_costs(costs):
-    # Number of datasets
-    num_datasets = len(costs)
-
-    # Create a 3x3 subplot grid
-    fig, axs = plt.subplots(3, 3, figsize=(30, 30))
-
-    # Iterate over all datasets
-    for i in range(num_datasets):
-        # Determine the position of the current subplot
-        row = i // 3
-        col = i % 3
-
-        # Get the current dataset
-        cost = costs[i]
-
-        # Plot the cost vs iterations
-        axs[row, col].plot(range(len(cost)), cost)
-
-        # Set the title for each subplot
-        axs[row, col].set_title(f'Dataset {i+1}')
-
-        # Label axes if needed
-        axs[row, col].set_xlabel('Iteration')
-        axs[row, col].set_ylabel('Cost')
-
-    # Adjust layout for better display
-    plt.tight_layout()
-    plt.show()
-
 def euler(rot):
     """
     Convert rotation matrix or quaternion to euler angles.
+
+    Args:
+        rot: rotation matrix or quaternion, shape (N, 3, 3) or (N, 4)
+
+    Returns:
+        eulers: euler angles, shape (N, 3)
     """
-    # assert that rot is of type list
     if type(rot) == dict:
         rot = rot['rots']
         return np.array([tf3d.euler.mat2euler(rot[i]) for i in range(rot.shape[0])])
     return np.array([tf3d.euler.quat2euler(q) for q in rot])
-
-def plot_acc(acc_data, ts, title='Acceleration'):
-    """
-    Plot the acceleration data
-
-    Args:
-        acc_data: acceleration data, shape (N, 3)
-        ts: timestamp, shape (N,)
-        title: title of the plot
-    """
-    plt.figure()
-    plt.plot(ts, acc_data[:, 0], label='Ax')
-    plt.plot(ts, acc_data[:, 1], label='Ay')
-    plt.plot(ts, acc_data[:, 2], label='Az')
-    plt.xlabel('time (s)')
-    plt.ylabel('acceleration (m/s^2)')
-    plt.title(title)
-    plt.legend()
-    plt.show()
-
-def plot_eulers(qs, vicon_data):
-    eulers_imu = np.array(euler(qs))
-    eulers_vicon = np.array(euler(vicon_data))
-
-    fig, axs = plt.subplots(3, 1, figsize=(10, 10))
-    axs[0].plot(eulers_imu[:, 0], label='imu')
-    axs[0].plot(eulers_vicon[:, 0], label='vicon')
-    axs[0].set_title('Roll')
-    axs[0].legend()
-
-    axs[1].plot(eulers_imu[:, 1], label='imu')
-    axs[1].plot(eulers_vicon[:, 1], label='vicon')
-    axs[1].set_title('Pitch')
-    axs[1].legend()
-
-    axs[2].plot(eulers_imu[:, 2], label='imu')
-    axs[2].plot(eulers_vicon[:, 2], label='vicon')
-    axs[2].set_title('Yaw')
-    axs[2].legend()
-
-    fig.savefig("testing.png", bbox_inches='tight')
-
-def plot_acc_vs_imuacc(acc_data, imu_acc_data, ts, title='Acceleration'):
-    """
-    Plot 3 by 1 subplots.
-    Plot Ax of acc_data with Ax of imu_acc_data on same subplot
-    Ay of acc_data with Ay of imu_acc_data on same subplot
-    Az of acc_data with Az of imu_acc_data on same subplot
-    """
-    fig, axs = plt.subplots(3, 1, figsize=(10, 10))
-    axs[0].plot(ts, acc_data[:, 0], label='acc')
-    axs[0].plot(ts, imu_acc_data[:, 0], label='imu_acc')
-    axs[0].set_title('Ax')
-    axs[0].legend()
-
-    axs[1].plot(ts, acc_data[:, 1], label='acc')
-    axs[1].plot(ts, imu_acc_data[:, 1], label='imu_acc')
-    axs[1].set_title('Ay')
-    axs[1].legend()
-
-    axs[2].plot(ts, acc_data[:, 2], label='acc')
-    axs[2].plot(ts, imu_acc_data[:, 2], label='imu_acc')
-    axs[2].set_title('Az')
-    axs[2].legend()
-
-    plt.show()
