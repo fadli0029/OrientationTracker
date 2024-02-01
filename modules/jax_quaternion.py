@@ -1,15 +1,15 @@
 # -------------------------------------------------------------------------
-# Author: Muhammad Fadli Alim Arsani
-# Email: fadlialim0029[at]gmail.com
-# File: jax_quaternion.py
-# Description: This file contains the implementation of quaternion
-#              operations using JAX. It support both batch and single
-#              quaternion (or quaternions pairs) operations. The supported
+# author: muhammad fadli alim arsani
+# email: fadlialim0029[at]gmail.com
+# file: jax_quaternion.py
+# description: this file contains the implementation of quaternion
+#              operations using jax. it support both batch and single
+#              quaternion (or quaternions pairs) operations. the supported
 #              operations are quaternion multiplication, quaternion inverse,
 #              quaternion exponential, and quaternion logarithm.
-# Misc: This is also part of one of the projects in the course
-#       "Sensing and Estimation in Robotics" taught by Prof. Nikolay
-#       Atanasov @UC San Diego.
+# misc: this is also part of one of the projects in the course
+#       "sensing and estimation in robotics" taught by prof. nikolay
+#       atanasov @uc san diego.
 #       https://natanaso.github.io/ece276a/index.html
 # -------------------------------------------------------------------------
 

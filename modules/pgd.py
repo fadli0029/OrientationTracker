@@ -1,3 +1,17 @@
+# -------------------------------------------------------------------------
+# author: muhammad fadli alim arsani
+# email: fadlialim0029[at]gmail.com
+# file: jax_quaternion.py
+# description: this file contains the implementation of the
+#              quaternion kinematics and the optimization
+#              of the motion model using the projected gradient descent
+#              (PGD) algorithm.
+# misc: this is also part of one of the projects in the course
+#       "sensing and estimation in robotics" taught by prof. nikolay
+#       atanasov @uc san diego.
+#       https://natanaso.github.io/ece276a/index.html
+# -------------------------------------------------------------------------
+
 import time
 import jax
 import jax.numpy as jnp
@@ -14,7 +28,23 @@ def pgd(
     num_iters=100,
     eps=1e-6
 ):
-    costs = [] # track cost over iterations
+    """
+    Projected Gradient Descent (PGD) algorithm for optimizing
+    the quaternion kinematics motion model.
+
+    Args:
+        q_motion:  the initial quaternion motion model being optimized
+        exp_term:  the exponential term in the quaternion kinematics
+        a_ts:      the accelerometer measurements
+        step_size: the step size for the gradient descent
+        num_iters: the number of iterations for the optimization
+        eps:       the epsilon value for numerical stability
+
+    Returns:
+        q:         the optimized quaternion motion model
+        cost:      the cost of the optimization
+    """
+    costs = []
     q = q_motion[1:]
     for _ in range(num_iters):
         cost, loss_grad = value_and_grad(cost_function)(q, exp_term, a_ts)
@@ -35,12 +65,31 @@ def optimize(
     eps=1e-6,
     debug=False
 ):
+    """
+    Optimize the quaternion kinematics motion model using the
+    IMU measurement and the projected gradient descent (PGD) algorithm.
+
+    Args:
+        dataset:               the dataset number
+        processed_imu_dataset: the processed IMU dataset
+        step_size:             the step size for the gradient descent
+        num_iters:             the number of iterations for the optimization
+        eps:                   the epsilon value for numerical stability
+        debug:                 the debug flag
+
+    Returns:
+        q_optim:               the optimized quaternion motion model
+        q_motion:              the initial quaternion motion model
+        a_estim:               the estimated accelerometer measurements
+        a_obs:                 the observed accelerometer measurements
+        costs:                 the cost of the optimization
+    """
     assert type(processed_imu_dataset) == dict,\
         "processed_imu_dataset must be a dictionary"
 
     start = time.time()
 
-    print(f"==========> 🚀🚀🚀  Optimizing dataset {dataset}")
+    print(f"==========> 🚀🚀🚀  Finding the optimal quaternions for dataset {dataset}")
     a_ts = processed_imu_dataset["accs"]
     w_ts = processed_imu_dataset["gyro"]
     t_ts = processed_imu_dataset["t_ts"]
@@ -50,7 +99,6 @@ def optimize(
     q_motion, exp_term = motion_model(q_motion, w_ts, t_ts)
     a_obs = observation_model(q_motion)
 
-    # Print all shapes
     q_optim, costs = pgd(
         q_motion,
         exp_term,
@@ -67,6 +115,17 @@ def optimize(
     return q_optim, q_motion, a_estim, a_obs, costs
 
 def cost_function(q, exp, acc_imu):
+    """
+    Implement the cost function for the quaternion kinematics optimization
+
+    Args:
+        q:       the quaternion motion model
+        exp:     the exponential term in the quaternion kinematics
+        acc_imu: the accelerometer measurements
+
+    Returns:
+        cost:    the cost of the optimization
+    """
     term_1 = 0.5 * (
         jnp.linalg.norm(2*
                         qlog_jax(
@@ -81,9 +140,16 @@ def cost_function(q, exp, acc_imu):
 
 def motion_model(q, w_ts, t_ts):
     """
-    Implements quaternion kinematics motion model
-    given angular velocities w_ts and the differences between
-    consecutive time stamps tau_ts from calibrated imu data.
+    Implement the quaternion kinematics motion model
+
+    Args:
+        q: the initial quaternion motion model
+        w_ts: the gyroscope measurements
+        t_ts: the time stamps
+
+    Returns:
+        q: the quaternion motion model
+        exp_term: the exponential term in the quaternion kinematics
     """
     tau_ts = (t_ts[1:] - t_ts[:-1]).reshape(-1, 1)
     exp_term = qexp_jax(jnp.hstack((jnp.zeros((w_ts.shape[0]-1, 1)), w_ts[:-1] * tau_ts / 2)))
@@ -94,55 +160,14 @@ def motion_model(q, w_ts, t_ts):
 @jit
 def observation_model(qs):
     """
-    Observation model for quaternion-based motion.
+    Implement the observation model for the accelerometer measurements
 
-    Parameters:
-    qs (array): Quaternion array.
+    Args:
+        qs: the quaternion motion model
 
     Returns:
-    array: Observed acceleration.
+        result: the estimated accelerometer measurements
     """
     g = jnp.array([0., 0., 0., 1.]).reshape(1, 4)
     result = qmult_jax(qinverse_jax(qs), qmult_jax(g, qs))
     return result[:, 1:]
-
-def sensor_fusion(gyro_data, accel_data, delta_t, alpha=0.5):
-    """
-    Implements drift correction via complementary filtering on gyroscopic and accelerometer data for
-    roll, pitch, and yaw angles.
-
-    Parameters:
-    gyro_data (array): Gyroscopic data with shape (N, 3).
-    accel_data (array): Accelerometer data with shape (N, 3).
-    delta_t (array): Time deltas with shape (N-1,).
-
-    Returns:
-    array: Fused sensor data for roll, pitch, and yaw angles.
-    """
-    N = gyro_data.shape[0]
-    angles = jnp.zeros((N, 3))  # Initialize roll, pitch, yaw angles array
-
-    # Calculate initial roll and pitch from the accelerometer data
-    roll = jnp.arctan2(accel_data[0, 1], accel_data[0, 2])
-    pitch = jnp.arctan2(-accel_data[0, 0], jnp.sqrt(accel_data[0, 1]**2 + accel_data[0, 2]**2))
-    yaw = 0.0  # Initialize yaw to 0 as we cannot estimate it from accelerometer
-
-    angles = angles.at[0].set(jnp.array([roll, pitch, yaw]))
-
-    for i in range(1, N):
-        # Gyro integration for each axis
-        gyro_angles = angles[i-1] + gyro_data[i-1] * delta_t[i-1]
-
-        # Accelerometer angle calculations
-        roll = jnp.arctan2(accel_data[i, 1], accel_data[i, 2])
-        pitch = jnp.arctan2(-accel_data[i, 0], jnp.sqrt(accel_data[i, 1]**2 + accel_data[i, 2]**2))
-        # Yaw remains integrated gyro value as there's no accelerometer data for it
-
-        # Apply complementary filter for roll and pitch, and gyro integration for yaw
-        fused_roll = alpha * gyro_angles[0] + (1 - alpha) * roll
-        fused_pitch = alpha * gyro_angles[1] + (1 - alpha) * pitch
-        fused_yaw = gyro_angles[2]  # Assuming we have no other sensor data for yaw
-
-        angles = angles.at[i].set(jnp.array([fused_roll, fused_pitch, fused_yaw]))
-
-    return jnp.array([tf3d.euler.euler2quat(*row) for row in angles])
