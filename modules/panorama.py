@@ -22,9 +22,11 @@ from .utils import quat2rot
 
 def build_panorama(
     camera_dataset: dict,
-    q_optim,
+    R,
+    # q_optim,
     t_ts,
     dataset,
+    prefix,
     panorama_images_folder_path
 ):
     """
@@ -41,7 +43,7 @@ def build_panorama(
     Returns:
         jnp.ndarray, shape (H, W, 3), the panorama image
     """
-    R = np.array(quat2rot(np.vstack((np.array([1., 0., 0., 0.]), q_optim))))
+    # R = np.array(quat2rot(np.vstack((np.array([1., 0., 0., 0.]), q_optim))))
 
     cam_imgs, cam_ts = camera_dataset['cam'], camera_dataset['ts']
     N, H, W, _ = cam_imgs.shape
@@ -81,7 +83,8 @@ def build_panorama(
         panorama_image[u_pixel, v_pixel] = np.copy(cam_imgs[i])
 
     # Save the panorama image
-    save_panorama_image(panorama_image, panorama_images_folder_path, dataset)
+    save_panorama_image(panorama_image, prefix, panorama_images_folder_path, dataset)
+    return panorama_image
 
 def spherical2cartesian(longitude, latitude, r=1.0):
     H, W = latitude.shape
@@ -99,7 +102,7 @@ def cartesian2spherical(cartesian_coords, r=1.0):
     longitudes = np.arctan2(Y, X)
     return longitudes, latitudes
 
-def save_panorama_image(panorama_image, folder_path, dataset):
+def save_panorama_image(panorama_image, prefix, folder_path, dataset):
     """
     Save the panorama image to the file path.
 
@@ -110,7 +113,7 @@ def save_panorama_image(panorama_image, folder_path, dataset):
     # If the folder path does not exist, create the folder
     if not os.path.exists(os.path.dirname(folder_path)):
         os.makedirs(os.path.dirname(folder_path))
-    file_path = folder_path + str(dataset) + ".png"
-    # plt.imsave(file_path, panorama_image.astype(jnp.uint8))
+    file_path = folder_path + prefix + "_" + str(dataset) + ".png"
+    panorama_image = np.rot90(panorama_image, 1)
     plt.imsave(file_path, panorama_image)
-    print(f"Panorama image saved to {file_path}")
+    print(f"Panorama image saved to {file_path}\n")

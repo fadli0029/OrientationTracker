@@ -203,11 +203,14 @@ def main(path_to_config="config.yaml"):
     panorama_image_record = {}
     start = time.time()
     for dataset in list(camera_datasets.keys()):
+        R = np.array(quat2rot(np.vstack((np.array([1., 0., 0., 0.]), q_optims[dataset]))))
         panorama_img = build_panorama(
             camera_datasets[dataset],
-            q_optims[dataset],
+            R,
+            # q_optims[dataset],
             processed_imu_datasets[dataset]["t_ts"],
             dataset,
+            "quaternions",
             other_configs["panorama_images_folder"]
         )
         panorama_image_record[dataset] = panorama_img
