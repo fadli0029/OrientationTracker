@@ -83,6 +83,26 @@ def read_vicon_data(dataset, path='data/'):
     vicon_data['ts'] = vicon_data['ts'].reshape(-1,)
     return vicon_data
 
+def read_camera_data(dataset, path='data/'):
+    """
+    Read the camera data from the dataset and return it
+
+    Args:
+        dataset (int): dataset number
+        path (str): path to the data folder
+
+    Returns:
+        camera_data: a dictionary with keys 'ts' and 'images',
+        such that 'ts' is a numpy array of shape (N,)
+        and 'images' is a numpy array of shape (N, H, W, C)
+    """
+    dataset = str(dataset)
+    camera_file = path + "cam/cam" + dataset + ".p"
+    camera_data = read_data(camera_file)
+    camera_data['cam'] = np.transpose(camera_data['cam'], (3, 0, 1, 2))
+    camera_data['ts'] = camera_data['ts'].reshape(-1,)
+    return camera_data
+
 def read_dataset(dataset, path='data/', data_name='all'):
     """
     Read the dataset and return the raw imu data and vicon data
@@ -97,7 +117,7 @@ def read_dataset(dataset, path='data/', data_name='all'):
                     where 'rots' is a numpy array of shape (N, 3, 3)
                     and 'ts' is a numpy array of shape (N,)
     """
-    valid_data_names = ['imu', 'vicon', 'all']
+    valid_data_names = ['imu', 'vicon', 'camera', 'all']
     assert data_name in valid_data_names, 'Invalid data name'
 
     dataset = str(dataset)
@@ -106,9 +126,50 @@ def read_dataset(dataset, path='data/', data_name='all'):
             return read_imu_data(dataset, path=path)
         elif data_name == 'vicon':
             return read_vicon_data(dataset, path=path)
+        elif data_name == 'camera':
+            return read_camera_data(dataset, path=path)
     elif data_name == 'all':
         return read_imu_data(dataset, path=path),\
                read_vicon_data(dataset, path=path)
+
+def check_files_exist(datasets, results_folder):
+    files = os.listdir(results_folder)
+    files_exist = {dataset: False for dataset in datasets}
+    for file in files:
+        if file.endswith('.npy'):
+            try:
+                d = int(file.split('_')[-1].split('.')[0])
+                if d in files_exist:
+                    files_exist[d] = True
+            except ValueError:
+                continue
+    return files_exist
+
+def save_results(data: dict, f: str, folder_path: str):
+    """
+    Save optimized quaternions, motion model quaternions, estimated
+    accelerations, observed accelerations, and costs record to a file.
+
+    Args:
+        data: a dictionary with dataset number as the key and values
+        is optimized quaternion 'q_optim' for example
+        filename: file name
+    """
+    for key, val in data.items():
+        dataset = str(key)
+        filename = folder_path + f + "_" + str(key) + '.npy'
+        jnp.save(filename, val)
+
+def load_results(filename: str):
+    """
+    Load optimized quaternions, motion model quaternions, estimated
+    accelerations, observed accelerations, and costs record from a file.
+
+    Args:
+        filename: file name
+    """
+    data = jnp.load(filename)
+    return data
 
 def save_plot(
     q_optim,

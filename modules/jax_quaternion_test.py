@@ -19,7 +19,7 @@ import transforms3d.quaternions as tq
 from jax_quaternion import qmult_jax, qinverse_jax, qexp_jax, qlog_jax
 
 from jax_quaternion import USE_JIT
-USE_JIT = True # Disable JIT for testing
+USE_JIT = True # Enable/Disable JIT for testing
 
 ATOL = 1e-5
 RTOL = 1e-5

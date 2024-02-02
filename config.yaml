@@ -22,4 +22,15 @@ other_configs:
     - 9
   quaternion_eps_numerical_stability: 0.000001
   path_to_datasets: "data/"
-  save_image_folder: "plot_images/"
+  plot_figures_folder: "plot_images/"
+  panorama_images_folder: "panorama_images/"
+  force_train: True
+results:
+  folder: "results/"
+  optimized_quaternion_fname: "q_optim"
+  motion_model_quaternion_fname: "q_motion"
+  acceleration_estimate_fname: "a_estim"
+  obsrv_model_fname: "a_obsrv"
+  costs_record_fname: "costs"
+
+

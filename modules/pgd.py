@@ -1,12 +1,12 @@
 # -------------------------------------------------------------------------
-# author: muhammad fadli alim arsani
-# email: fadlialim0029[at]gmail.com
-# file: jax_quaternion.py
-# description: this file contains the implementation of the
+# Author: muhammad fadli alim arsani
+# Email: fadlialim0029[at]gmail.com
+# File: jax_quaternion.py
+# Description: this file contains the implementation of the
 #              quaternion kinematics and the optimization
 #              of the motion model using the projected gradient descent
 #              (PGD) algorithm.
-# misc: this is also part of one of the projects in the course
+# Misc: this is also part of one of the projects in the course
 #       "sensing and estimation in robotics" taught by prof. nikolay
 #       atanasov @uc san diego.
 #       https://natanaso.github.io/ece276a/index.html
@@ -48,7 +48,6 @@ def pgd(
     costs = []
     q = q_motion[1:]
     for _ in tqdm(range(num_iters), desc="PGD Iterations", unit="iter"):
-    # for _ in range(num_iters):
         cost, loss_grad = value_and_grad(cost_function)(q, exp_term, a_ts)
         q = q.at[:].set(q-(loss_grad*step_size))
 
@@ -109,8 +108,7 @@ def optimize(
     a_estim = observation_model(q_optim)
 
     opt_duration = time.time() - start
-    print(f"Finished optimizing! Took {opt_duration:.2f} seconds.")
-    print("")
+    print(f"Finished optimizing! Took {opt_duration:.2f} seconds.\n")
     return q_optim, q_motion, a_estim, a_obs, costs
 
 def cost_function(q, exp, acc_imu):

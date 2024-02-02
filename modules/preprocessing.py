@@ -13,6 +13,7 @@
 import time
 import numpy as np
 from .utils import *
+from tqdm import tqdm
 import jax.numpy as jnp
 
 def process_imu_data(
@@ -68,7 +69,7 @@ def process_imu_data(
     acc_data[:, 1] = -acc_data[:, 1]
 
     # add gravity since we expect Az to be g during static period
-    acc_data[:, 2] += 1.
+    acc_data[:, 2] += 1.0
 
     # Bias correction and conversion for gyro. data
     gyro_data = (imu_data_raw[:, 3:6] - bias[3:])
@@ -110,7 +111,7 @@ def process_all_imu_datasets(
     print(f"==========> Processing {len(datasets)} IMU datasets.")
     start = time.time()
     processed_imu_data = {}
-    for dataset in datasets:
+    for dataset in tqdm(datasets, desc="Processing IMU datasets"):
         # load the dataset
         imu_data_raw = read_dataset(
             dataset, path=path, data_name='imu'
@@ -131,8 +132,46 @@ def process_all_imu_datasets(
             "t_ts": timestamps
         }
     duration = time.time() - start
-    print(f"Done! Plotting took {duration:.2f} seconds.\n")
+    print(f"Done! Took {duration:.2f} seconds.\n")
     return processed_imu_data
+
+def load_all_camera_datasets(path: str, datasets: list):
+    """
+    Load all camera datasets.
+
+    Args:
+        path:     path to the datasets
+        datasets: list of datasets to load
+
+    Returns:
+        camera_datasets: dictionary with the loaded data
+        where the key "images" of shape (N, H, W, 3) is the
+        image and the key "ts" of shape (N,) is the timestamp
+        when the data was recorded.
+    """
+    assert len(datasets) > 0, "No datasets provided!"
+    assert type(datasets) == list, "Datasets must be a list!"
+
+    actual_datasets = []
+    valid_datasets = [1, 2, 8, 9]
+    for dataset in datasets:
+        if dataset in valid_datasets:
+            actual_datasets.append(dataset)
+        else:
+            print(f"Dataset {dataset} is not valid for camera dataset. Skipping...")
+
+    if len(actual_datasets) == 0:
+        raise ValueError("No valid datasets provided!")
+
+    datasets = actual_datasets
+    print(f"==========> Loading {len(datasets)} camera datasets.")
+    start = time.time()
+    camera_datasets = {}
+    for dataset in tqdm(datasets, desc="Loading camera datasets"):
+        camera_datasets[dataset] = read_dataset(dataset, path=path, data_name='camera')
+    duration = time.time() - start
+    print(f"Done! Took {duration:.2f} seconds.\n")
+    return camera_datasets
 
 def load_all_vicon_datasets(path: str, datasets: list):
     """
@@ -154,7 +193,7 @@ def load_all_vicon_datasets(path: str, datasets: list):
     print(f"==========> Loading {len(datasets)} Vicon datasets.")
     start = time.time()
     vicon_datasets = {}
-    for dataset in datasets:
+    for dataset in tqdm(datasets, desc="Loading VICON datasets"):
         vicon_datasets[dataset] = read_dataset(dataset, path=path, data_name='vicon')
     duration = time.time() - start
     print(f"Done! Took {duration:.2f} seconds.\n")
