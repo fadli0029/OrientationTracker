@@ -15,9 +15,10 @@
 import os
 import time
 from tqdm import tqdm
-import jax.numpy as jnp
+import numpy as np
 import matplotlib.pyplot as plt
 from transforms3d.quaternions import quat2mat
+from .utils import quat2rot
 
 def build_panorama(
     camera_dataset: dict,
@@ -40,99 +41,63 @@ def build_panorama(
     Returns:
         jnp.ndarray, shape (H, W, 3), the panorama image
     """
-    cam_img, cam_ts = camera_dataset["cam"], camera_dataset["ts"]
-    N, H, W, C = cam_img.shape
+    R = np.array(quat2rot(np.vstack((np.array([1., 0., 0., 0.]), q_optim))))
 
-    pH, pW = 720, 1080
-    panorama_image = jnp.zeros((int(pH), int(pW), 3))
+    cam_imgs, cam_ts = camera_dataset['cam'], camera_dataset['ts']
+    N, H, W, _ = cam_imgs.shape
 
-    def degree(x):
-        return x * (180 / jnp.pi)
-    theta, phi = jnp.meshgrid(
-        jnp.linspace(degree(-22.5), degree(22.5), H),
-        jnp.linspace(degree(-30), degree(30), W)
-    )
-    r = jnp.ones((H, W))
-    spherical_coords = jnp.stack([theta.T, phi.T, r], axis=-1)
-    cartesian_coords = spherical2cartesian(*spherical_coords.T)
-    cartesian_coords = jnp.stack(cartesian_coords, axis=-1)
+    uctr, vctr = H // 2, W // 2
 
-    pbar = tqdm(range(N), desc="==========> 📸  Building panorama images", unit="image")
-    for i in pbar:
-        iter_start = time.time()
-        pbar.set_description(f"==========> 📸  Building panorama image for dataset {dataset}")
+    horizontal_angle = 60.
+    vertical_angle = 45.
 
-        # Compute the rotation matrix and apply it to cartesian coordinates
-        # (we use closest-in-the-past timestamp (see project1 desc.))
-        R_wc = quat2mat(q_optim[jnp.argmax(t_ts>cam_ts[i])])
+    pan_H, pan_W = 720, 1080
+    panorama_image = np.zeros((pan_H+1, pan_W+1, 3), dtype=np.uint8)
 
-        cartesian_coords_w = R_wc @ cartesian_coords.reshape((-1, 3)).T + jnp.repeat(jnp.array([0, 0, 0.1]).reshape((-1, 1)), H*W, axis=1)
-        cartesian_coords_w = cartesian_coords_w.T.reshape((H, W, 3))
+    V, U = np.meshgrid(np.arange(W), np.arange(H))
 
-        spherical_coords_w = cartesian2spherical(
-            cartesian_coords_w[:, :, 0], cartesian_coords_w[:, :, 1], cartesian_coords_w[:, :, 2]
-        )
-        spherical_coords_w = jnp.stack(spherical_coords_w, axis=-1)
-        spherical_coords_w = spherical_coords_w[:, :, 0:2]
+    longitudes = (-(V - vctr) * horizontal_angle / W) * np.pi / 180.
+    latitudes = ((U - uctr) * vertical_angle / H) * np.pi / 180.
 
-        # Project spherical coordinates to the panorama image plane
-        spherical_coords_w = spherical_coords_w.at[:, :, 0].set((jnp.pi/2 + spherical_coords_w[:, :, 0]) / jnp.pi)
-        spherical_coords_w = spherical_coords_w.at[:, :, 1].set((jnp.pi + spherical_coords_w[:, :, 1]) / (2 * jnp.pi))
+    cartesian_coords = spherical2cartesian(longitudes, latitudes, 1.)
 
-        spherical_coords_w = spherical_coords_w.at[:, :, 0].set(spherical_coords_w[:, :, 0]*pH)
-        spherical_coords_w = spherical_coords_w.at[:, :, 1].set(spherical_coords_w[:, :, 1]*pW)
+    for i in tqdm(range(N)):
+        # Get closest-in-the-past timestamp
+        idx = np.where((cam_ts[i] - t_ts) > 0)[0][-1]
+        rot = R[idx]
 
-        # convert to ints for indexing
-        cylindrical_coords_w = spherical_coords_w.astype(int)
+        cartesian_coords_rot = np.matmul(cartesian_coords, rot.T)
+        longitudes_rot, latitudes_rot = cartesian2spherical(cartesian_coords_rot)
 
-        # copy image to panorama
-        panorama_image = panorama_image.astype(int)
-        panorama_image = panorama_image.at[cylindrical_coords_w[:, :, 0], cylindrical_coords_w[:, :, 1]].set(cam_img[i, :, :, 0:3])
+        # Convert to pixel coordinates
+        u_pixel = np.round(((longitudes_rot + np.pi/2) / np.pi) * pan_H).astype(np.int32)
+        v_pixel = np.round(((np.pi - latitudes_rot) / (2 * np.pi)) * pan_W).astype(np.int32)
 
-        iter_end = time.time()
-        iter_duration = iter_end - iter_start
-        pbar.set_postfix(time=f"{iter_duration:.4f}s")
+        if np.max(u_pixel) > pan_H or np.max(u_pixel) < 0 or np.min(u_pixel) < 0 or np.min(u_pixel) > pan_H:
+            continue
+        if np.max(v_pixel) > pan_W or np.max(v_pixel) < 0 or np.min(v_pixel) < 0 or np.min(v_pixel) > pan_W:
+            continue
 
+        panorama_image[u_pixel, v_pixel] = np.copy(cam_imgs[i])
+
+    # Save the panorama image
     save_panorama_image(panorama_image, panorama_images_folder_path, dataset)
-    return panorama_image
 
-def spherical2cartesian(theta, phi, r):
-    """
-    Convert the spherical coordinate to cartesian coordinate.
+def spherical2cartesian(longitude, latitude, r=1.0):
+    H, W = latitude.shape
 
-    Args:
-        theta: float, the azimuthal angle
-        phi:   float, the polar angle
-        r:     float, the radius
+    cartesian_coords = np.zeros((H, W, 3))
+    cartesian_coords[:, :, 0] = r * np.cos(latitude) * np.cos(longitude)
+    cartesian_coords[:, :, 1] = r * np.cos(latitude) * np.sin(longitude)
+    cartesian_coords[:, :, 2] = -1 * r * np.sin(latitude)
+    return cartesian_coords
 
-    Returns:
-        x: float, the x coordinate
-        y: float, the y coordinate
-        z: float, the z coordinate
-    """
-    x = r * jnp.cos(phi) * jnp.cos(theta)
-    y = -r * jnp.cos(theta) * jnp.sin(phi)
-    z = -r * jnp.sin(theta)
-    return x, y, z
+def cartesian2spherical(cartesian_coords, r=1.0):
+    X, Y, Z = cartesian_coords[:, :, 0], cartesian_coords[:, :, 1], cartesian_coords[:, :, 2]
 
-def cartesian2spherical(x, y, z):
-    """
-    Convert the cartesian coordinate to spherical coordinate.
-
-    Args:
-        x: float, the x coordinate
-        y: float, the y coordinate
-        z: float, the z coordinate
-
-    Returns:
-        theta: float, the azimuthal angle
-        phi:   float, the polar angle
-        r:     float, the radius
-    """
-    r = jnp.sqrt(x**2 + y**2 + z**2)
-    phi = jnp.arctan2(-y, x)
-    theta = jnp.arcsin(-z / r)
-    return theta, phi, r
+    latitudes = np.arcsin(-Z / r)
+    longitudes = np.arctan2(Y, X)
+    return longitudes, latitudes
 
 def save_panorama_image(panorama_image, folder_path, dataset):
     """
@@ -146,5 +111,6 @@ def save_panorama_image(panorama_image, folder_path, dataset):
     if not os.path.exists(os.path.dirname(folder_path)):
         os.makedirs(os.path.dirname(folder_path))
     file_path = folder_path + str(dataset) + ".png"
-    plt.imsave(file_path, panorama_image.astype(jnp.uint8))
+    # plt.imsave(file_path, panorama_image.astype(jnp.uint8))
+    plt.imsave(file_path, panorama_image)
     print(f"Panorama image saved to {file_path}")

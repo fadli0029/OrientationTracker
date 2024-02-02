@@ -173,47 +173,47 @@ def main(path_to_config="config.yaml"):
             save_results(data, f, results_configs["folder"])
         print(f"==========> ✅  Done! All results saved to {results_configs['folder']}\n")
 
-    print("==================================")
-    print("Saving plots...")
-    print("==================================")
-    pbar = tqdm(other_configs["datasets"], desc="==========> 📊  Saving plots", unit="plot")
-    for dataset in pbar:
-        iter_start = time.time()
-
-        save_plot(
-            q_optims[dataset],
-            q_motion[dataset],
-            a_estims[dataset],
-            a_obsrvs[dataset],
-            vicon_datasets[dataset],
-            processed_imu_datasets[dataset]["accs"],
-            dataset,
-            other_configs["plot_figures_folder"]
-        )
-
-        iter_end = time.time()
-        iter_duration = iter_end - iter_start
-
-        pbar.set_postfix(time=f"{iter_duration:.4f}s")
-    print(f"==========> ✅  Done! All plots saved to {other_configs['plot_figures_folder']}\n")
-
     # print("==================================")
-    # print("Building panorama images...")
+    # print("Saving plots...")
     # print("==================================")
-    # panorama_image_record = {}
-    # start = time.time()
-    # for dataset in list(camera_datasets.keys()):
-    #     panorama_img = build_panorama(
-    #         camera_datasets[dataset],
+    # pbar = tqdm(other_configs["datasets"], desc="==========> 📊  Saving plots", unit="plot")
+    # for dataset in pbar:
+    #     iter_start = time.time()
+
+    #     save_plot(
     #         q_optims[dataset],
-    #         processed_imu_datasets[dataset]["t_ts"],
+    #         q_motion[dataset],
+    #         a_estims[dataset],
+    #         a_obsrvs[dataset],
+    #         vicon_datasets[dataset],
+    #         processed_imu_datasets[dataset]["accs"],
     #         dataset,
-    #         other_configs["panorama_images_folder"]
+    #         other_configs["plot_figures_folder"]
     #     )
-    #     panorama_image_record[dataset] = panorama_img
-    # end = time.time()
-    # duration = round(end - start, 2)
-    # print(f"==========> ✅  Done (Took {duration}s)! All panorama images saved to {other_configs['panorama_images_folder']}")
+
+    #     iter_end = time.time()
+    #     iter_duration = iter_end - iter_start
+
+    #     pbar.set_postfix(time=f"{iter_duration:.4f}s")
+    # print(f"==========> ✅  Done! All plots saved to {other_configs['plot_figures_folder']}\n")
+
+    print("==================================")
+    print("Building panorama images...")
+    print("==================================")
+    panorama_image_record = {}
+    start = time.time()
+    for dataset in list(camera_datasets.keys()):
+        panorama_img = build_panorama(
+            camera_datasets[dataset],
+            q_optims[dataset],
+            processed_imu_datasets[dataset]["t_ts"],
+            dataset,
+            other_configs["panorama_images_folder"]
+        )
+        panorama_image_record[dataset] = panorama_img
+    end = time.time()
+    duration = round(end - start, 2)
+    print(f"==========> ✅  Done (Took {duration}s)! All panorama images saved to {other_configs['panorama_images_folder']}")
 
 if __name__ == "__main__":
     main()

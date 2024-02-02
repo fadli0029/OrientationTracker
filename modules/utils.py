@@ -155,6 +155,9 @@ def save_results(data: dict, f: str, folder_path: str):
         is optimized quaternion 'q_optim' for example
         filename: file name
     """
+    # If folder does not exist, create it. But strip the last '/' first
+    if not os.path.exists(folder_path[:-1]):
+        os.makedirs(folder_path[:-1])
     for key, val in data.items():
         dataset = str(key)
         filename = folder_path + f + "_" + str(key) + '.npy'
@@ -170,6 +173,16 @@ def load_results(filename: str):
     """
     data = jnp.load(filename)
     return data
+
+def quat2rot(q):
+    assert q.shape[-1] == 4, "Input must have shape (..., 4)"
+    q = q / jnp.linalg.norm(q, axis=-1, keepdims=True)
+
+    # use tf3d to convert quaternion to rotation matrix
+    R = jnp.zeros((q.shape[0], 3, 3), dtype=jnp.float64)
+    for i in range(q.shape[0]):
+        R = R.at[i].set(jnp.array(tf3d.quaternions.quat2mat(q[i]), dtype=jnp.float64))
+    return R
 
 def save_plot(
     q_optim,
