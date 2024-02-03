@@ -24,7 +24,8 @@ other_configs:
   path_to_datasets: "data/"
   plot_figures_folder: "plot_images/"
   panorama_images_folder: "panorama_images/"
-  force_train: False
+  no_force_train: False
+  use_vicon: False
 results:
   folder: "results/"
   optimized_quaternion_fname: "q_optim"

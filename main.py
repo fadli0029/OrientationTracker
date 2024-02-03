@@ -11,6 +11,7 @@
 #       https://natanaso.github.io/ece276a/index.html
 # -------------------------------------------------------------------------
 
+import argparse
 import yaml
 import time
 from tqdm import tqdm
@@ -47,12 +48,30 @@ def main(path_to_config="config.yaml"):
     Returns:
         None
     """
-    # load config
+    # load configs
     config = load_config(path_to_config)
     data_processing_constants = config["data_processing_constants"]
     training_parameters = config["training_parameters"]
     other_configs = config["other_configs"]
     results_configs = config["results"]
+
+    # parse the arguments
+    parser = argparse.ArgumentParser(description="Orientation tracking using IMU data.")
+    parser.add_argument("--datasets", nargs="+", type=int, help="List of datasets to train and test the algorithm.")
+    parser.add_argument("--plot_folder", type=str, help="Folder to save the plots.")
+    parser.add_argument("--panorama_folder", type=str, help="Folder to save the panorama images.")
+    parser.add_argument("--no_force_train", action="store_false", help="Force to train the algorithm even if the results are saved.")
+    parser.add_argument("--use_vicon", action="store_true", help="Will use vicon data to generate panarama images if passed.")
+
+    args = parser.parse_args()
+    if args.datasets:
+        other_configs["datasets"] = args.datasets
+    if args.plot_folder:
+        results_configs["plot_folder"] = args.plot_folder
+    if args.panorama_folder:
+        results_configs["panorama_folder"] = args.panorama_folder
+    other_configs["no_force_train"] = args.no_force_train
+    other_configs["use_vicon"] = args.use_vicon
 
     print("==================================")
     print("Loading datasets...")
@@ -85,7 +104,7 @@ def main(path_to_config="config.yaml"):
     # Check if there are saved results in the results folder.
     # If there are, don't do the optimization again.
     if os.path.exists(results_configs["folder"]):
-        if not other_configs["force_train"]:
+        if not other_configs["no_force_train"]:
             print("==================================")
             print("Loading saved results...")
             print("==================================")
@@ -173,29 +192,29 @@ def main(path_to_config="config.yaml"):
             save_results(data, f, results_configs["folder"])
         print(f"==========> ✅  Done! All results saved to {results_configs['folder']}\n")
 
-    # print("==================================")
-    # print("Saving plots...")
-    # print("==================================")
-    # pbar = tqdm(other_configs["datasets"], desc="==========> 📊  Saving plots", unit="plot")
-    # for dataset in pbar:
-    #     iter_start = time.time()
+    print("==================================")
+    print("Saving plots...")
+    print("==================================")
+    pbar = tqdm(other_configs["datasets"], desc="==========> 📊  Saving plots", unit="plot")
+    for dataset in pbar:
+        iter_start = time.time()
 
-    #     save_plot(
-    #         q_optims[dataset],
-    #         q_motion[dataset],
-    #         a_estims[dataset],
-    #         a_obsrvs[dataset],
-    #         vicon_datasets[dataset],
-    #         processed_imu_datasets[dataset]["accs"],
-    #         dataset,
-    #         other_configs["plot_figures_folder"]
-    #     )
+        save_plot(
+            q_optims[dataset],
+            q_motion[dataset],
+            a_estims[dataset],
+            a_obsrvs[dataset],
+            vicon_datasets[dataset],
+            processed_imu_datasets[dataset]["accs"],
+            dataset,
+            other_configs["plot_figures_folder"]
+        )
 
-    #     iter_end = time.time()
-    #     iter_duration = iter_end - iter_start
+        iter_end = time.time()
+        iter_duration = iter_end - iter_start
 
-    #     pbar.set_postfix(time=f"{iter_duration:.4f}s")
-    # print(f"==========> ✅  Done! All plots saved to {other_configs['plot_figures_folder']}\n")
+        pbar.set_postfix(time=f"{iter_duration:.4f}s")
+    print(f"==========> ✅  Done! All plots saved to {other_configs['plot_figures_folder']}\n")
 
     print("==================================")
     print("Building panorama images...")
@@ -203,11 +222,14 @@ def main(path_to_config="config.yaml"):
     panorama_image_record = {}
     start = time.time()
     for dataset in list(camera_datasets.keys()):
-        # R = np.array(quat2rot(np.vstack((np.array([1., 0., 0., 0.]), q_optims[dataset]))))
-        # ts = processed_imu_datasets[dataset]["t_ts"]
-        R = np.concatenate((np.identity(3)[np.newaxis, :, :], vicon_datasets[dataset]["rots"]), axis=0)
-        ts = vicon_datasets[dataset]["ts"]
-        prefix = "vicon"
+        if other_configs["use_vicon"]:
+            R = np.concatenate((np.identity(3)[np.newaxis, :, :], vicon_datasets[dataset]["rots"]), axis=0)
+            ts = vicon_datasets[dataset]["ts"]
+            prefix = "vicon"
+        else:
+            R = np.array(quat2rot(np.vstack((np.array([1., 0., 0., 0.]), q_optims[dataset]))))
+            ts = processed_imu_datasets[dataset]["t_ts"]
+            prefix = "quaternion"
         panorama_img = build_panorama(
             camera_datasets[dataset],
             R,
