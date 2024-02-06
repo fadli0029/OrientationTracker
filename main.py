@@ -57,15 +57,23 @@ def main(path_to_config="config.yaml"):
 
     # parse the arguments
     parser = argparse.ArgumentParser(description="Orientation tracking using IMU data.")
+    parser.add_argument("mode", choices=["train", "test"], help="Mode to run the algorithm.")
     parser.add_argument("--datasets", nargs="+", type=int, help="List of datasets to train and test the algorithm.")
     parser.add_argument("--plot_folder", type=str, help="Folder to save the plots.")
     parser.add_argument("--panorama_folder", type=str, help="Folder to save the panorama images.")
     parser.add_argument("--no_force_train", action="store_false", help="Force to train the algorithm even if the results are saved.")
     parser.add_argument("--use_vicon", action="store_true", help="Will use vicon data to generate panarama images if passed.")
 
+    MODE = None
     args = parser.parse_args()
-    if args.datasets:
-        other_configs["datasets"] = args.datasets
+    if args.mode == "test":
+        other_configs["path_to_datasets"] = "data/testset/"
+        other_configs["datasets"] = [10, 11]
+        MODE = "test"
+    elif args.mode == "train":
+        if args.datasets:
+            other_configs["datasets"] = args.datasets
+        MODE = "train"
     if args.plot_folder:
         results_configs["plot_folder"] = args.plot_folder
     if args.panorama_folder:
@@ -88,10 +96,11 @@ def main(path_to_config="config.yaml"):
     )
 
     # load all vicon datasets
-    vicon_datasets = load_all_vicon_datasets(
-        other_configs["path_to_datasets"],
-        other_configs["datasets"]
-    )
+    if MODE == "train":
+        vicon_datasets = load_all_vicon_datasets(
+            other_configs["path_to_datasets"],
+            other_configs["datasets"]
+        )
 
     # load all camera datasets
     camera_datasets = load_all_camera_datasets(
@@ -199,16 +208,27 @@ def main(path_to_config="config.yaml"):
     for dataset in pbar:
         iter_start = time.time()
 
-        save_plot(
-            q_optims[dataset],
-            q_motion[dataset],
-            a_estims[dataset],
-            a_obsrvs[dataset],
-            vicon_datasets[dataset],
-            processed_imu_datasets[dataset]["accs"],
-            dataset,
-            other_configs["plot_figures_folder"]
-        )
+        if MODE == "train":
+            save_plot(
+                q_optims[dataset],
+                q_motion[dataset],
+                a_estims[dataset],
+                a_obsrvs[dataset],
+                processed_imu_datasets[dataset]["accs"],
+                dataset,
+                other_configs["plot_figures_folder"],
+                vicon_datasets[dataset]
+            )
+        else:
+            save_plot(
+                q_optims[dataset],
+                q_motion[dataset],
+                a_estims[dataset],
+                a_obsrvs[dataset],
+                processed_imu_datasets[dataset]["accs"],
+                dataset,
+                other_configs["plot_figures_folder"]
+            )
 
         iter_end = time.time()
         iter_duration = iter_end - iter_start

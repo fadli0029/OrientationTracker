@@ -189,10 +189,10 @@ def save_plot(
     q_motion,
     a_estims,
     a_obsrv,
-    vicon_data,
     accs_imu,
     dataset,
-    save_image_folder
+    save_image_folder,
+    vicon_data=None
 ):
     """
     Save the plot of the optimized, observed, and IMU-measured acceleration
@@ -205,10 +205,10 @@ def save_plot(
         q_motion: quaternion from motion model
         a_estims: estimated acceleration
         a_obsrv: observed acceleration
-        vicon_data: a dictionary with keys 'rots' and 'ts',
         accs_imu: IMU-measured acceleration
         dataset: dataset number
         save_image_folder: folder to save the image
+        vicon_data: a dictionary with keys 'rots' and 'ts',
 
     Returns:
         None
@@ -235,23 +235,22 @@ def save_plot(
     # Calculating Euler angles
     eulers_q_optim = np.array(euler(q_optim))
     eulers_q_motion = np.array(euler(q_motion))
-    eulers_vicon = np.array(euler(vicon_data))
-
-    # Since we estimated from 1:T, we need to slice q_motion and vicon_data
-    # to match the size of q_optim
-    q_motion = q_motion[1:]
-    eulers_vicon = eulers_vicon[1:]
+    if vicon_data is not None:
+        eulers_vicon = np.array(euler(vicon_data))
+        eulers_vicon = eulers_vicon[1:]
 
     # Plotting the Euler angles
     axs[0, 1].plot(eulers_q_optim[:, 0],  label='Optimized (Roll)',    color='r')
     axs[0, 1].plot(eulers_q_motion[:, 0], label='Motion model (Roll)', color='g')
-    axs[0, 1].plot(eulers_vicon[:, 0],    label='Vicon (Roll)',        color='b')
     axs[1, 1].plot(eulers_q_optim[:, 1],  label='Optimized (Pitch)',   color='r')
     axs[1, 1].plot(eulers_q_motion[:, 1], label='Motion model (Pitch)',color='g')
-    axs[1, 1].plot(eulers_vicon[:, 1],    label='Vicon (Pitch)',       color='b')
     axs[2, 1].plot(eulers_q_optim[:, 2],  label='Optimized (Yaw)',     color='r')
     axs[2, 1].plot(eulers_q_motion[:, 2], label='Motion model (Yaw)',  color='g')
-    axs[2, 1].plot(eulers_vicon[:, 2],    label='Vicon (Yaw)',         color='b')
+
+    if vicon_data is not None:
+        axs[0, 1].plot(eulers_vicon[:, 0],    label='Vicon (Roll)',        color='b')
+        axs[1, 1].plot(eulers_vicon[:, 1],    label='Vicon (Pitch)',       color='b')
+        axs[2, 1].plot(eulers_vicon[:, 2],    label='Vicon (Yaw)',         color='b')
 
     # Setting titles for each subplot
     axs[0, 0].set_title('Ax')

@@ -21,7 +21,7 @@ other_configs:
     - 8
     - 9
   quaternion_eps_numerical_stability: 0.000001
-  path_to_datasets: "data/"
+  path_to_datasets: "data/testset/"
   plot_figures_folder: "plot_images/"
   panorama_images_folder: "panorama_images/"
   no_force_train: False

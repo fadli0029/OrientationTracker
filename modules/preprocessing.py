@@ -153,7 +153,7 @@ def load_all_camera_datasets(path: str, datasets: list):
     assert type(datasets) == list, "Datasets must be a list!"
 
     actual_datasets = []
-    valid_datasets = [1, 2, 8, 9]
+    valid_datasets = [1, 2, 8, 9, 10, 11]
     for dataset in datasets:
         if dataset in valid_datasets:
             actual_datasets.append(dataset)
