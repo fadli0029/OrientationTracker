@@ -71,9 +71,10 @@ def main(path_to_config="config.yaml"):
         other_configs["datasets"] = [10, 11]
         MODE = "test"
     elif args.mode == "train":
+        other_configs["path_to_datasets"] = "data/trainset/"
+        MODE = "train"
         if args.datasets:
             other_configs["datasets"] = args.datasets
-        MODE = "train"
     if args.plot_folder:
         results_configs["plot_folder"] = args.plot_folder
     if args.panorama_folder:
