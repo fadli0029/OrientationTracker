@@ -33,5 +33,6 @@ results:
   acceleration_estimate_fname: "a_estim"
   obsrv_model_fname: "a_obsrv"
   costs_record_fname: "costs"
+  plot_model: False
 
 

@@ -145,7 +145,7 @@ def check_files_exist(datasets, results_folder):
                 continue
     return files_exist
 
-def save_results(data: dict, f: str, folder_path: str):
+def save_results(data: dict, f: str, folder_path: str, tr):
     """
     Save optimized quaternions, motion model quaternions, estimated
     accelerations, observed accelerations, and costs record to a file.
@@ -155,12 +155,17 @@ def save_results(data: dict, f: str, folder_path: str):
         is optimized quaternion 'q_optim' for example
         filename: file name
     """
+    trackers = {
+        'pgd': 'PGD',
+        'kf': 'KF',
+    }
+
     # If folder does not exist, create it. But strip the last '/' first
     if not os.path.exists(folder_path[:-1]):
         os.makedirs(folder_path[:-1])
     for key, val in data.items():
         dataset = str(key)
-        filename = folder_path + f + "_" + str(key) + '.npy'
+        filename = folder_path + f + "_" + str(key) + "_" + trackers[tr] + '.npy'
         jnp.save(filename, val)
 
 def load_results(filename: str):
@@ -185,14 +190,16 @@ def quat2rot(q):
     return R
 
 def save_plot(
+    tr,
     q_optim,
     q_motion,
-    a_estims,
+    a_optims,
     a_obsrv,
     accs_imu,
     dataset,
     save_image_folder,
-    vicon_data=None
+    vicon_data=None,
+    plot_model=False,
 ):
     """
     Save the plot of the optimized, observed, and IMU-measured acceleration
@@ -201,6 +208,7 @@ def save_plot(
     System.
 
     Args:
+        tr: tracker name
         q_optim: optimized quaternion
         q_motion: quaternion from motion model
         a_estims: estimated acceleration
@@ -217,20 +225,28 @@ def save_plot(
     if not os.path.exists(save_image_folder):
         os.makedirs(save_image_folder)
 
-    filename = save_image_folder + 'dataset_' + str(dataset) + '.png'
+    trackers = {
+        'pgd': 'PGD',
+        'kf': 'KF',
+    }
+
+    filename = save_image_folder + 'dataset_' + str(dataset) + '_' + trackers[tr] + '.png'
     ts = np.array(list(range(len(q_optim))))
     fig, axs = plt.subplots(3, 2, figsize=(20, 10))
 
+
     # Plotting the acceleration data
-    axs[0, 0].plot(ts, a_estims[:, 0],  label='Optimized (Ax)',   color='r')
-    axs[0, 0].plot(ts, a_obsrv[1:, 0],  label='Obsv. model (Ax)', color='g')
+    axs[0, 0].plot(ts, a_optims[:, 0],  label='Optimized (Ax), ' + trackers[tr], color='r')
     axs[0, 0].plot(ts, accs_imu[1:, 0], label='IMU (Ax)',         color='b')
-    axs[1, 0].plot(ts, a_estims[:, 1],  label='Optimized (Ay)',   color='r')
-    axs[1, 0].plot(ts, a_obsrv[1:, 1],  label='Obsv. model (Ay)', color='g')
+    axs[1, 0].plot(ts, a_optims[:, 1],  label='Optimized (Ay), ' + trackers[tr], color='r')
     axs[1, 0].plot(ts, accs_imu[1:, 1], label='IMU (Ay)',         color='b')
-    axs[2, 0].plot(ts, a_estims[:, 2],  label='Optimized (Az)',   color='r')
-    axs[2, 0].plot(ts, a_obsrv[1:, 2],  label='Obsv. model (Az)', color='g')
+    axs[2, 0].plot(ts, a_optims[:, 2],  label='Optimized (Az), ' + trackers[tr], color='r')
     axs[2, 0].plot(ts, accs_imu[1:, 2], label='IMU (Az)',         color='b')
+
+    if plot_model:
+        axs[0, 0].plot(ts, a_obsrv[1:, 0],  label='Obsv. model (Ax)', color='g')
+        axs[1, 0].plot(ts, a_obsrv[1:, 1],  label='Obsv. model (Ay)', color='g')
+        axs[2, 0].plot(ts, a_obsrv[1:, 2],  label='Obsv. model (Az)', color='g')
 
     # Calculating Euler angles
     eulers_q_optim = np.array(euler(q_optim))
@@ -240,12 +256,14 @@ def save_plot(
         eulers_vicon = eulers_vicon[1:]
 
     # Plotting the Euler angles
-    axs[0, 1].plot(eulers_q_optim[:, 0],  label='Optimized (Roll)',    color='r')
-    axs[0, 1].plot(eulers_q_motion[:, 0], label='Motion model (Roll)', color='g')
-    axs[1, 1].plot(eulers_q_optim[:, 1],  label='Optimized (Pitch)',   color='r')
-    axs[1, 1].plot(eulers_q_motion[:, 1], label='Motion model (Pitch)',color='g')
-    axs[2, 1].plot(eulers_q_optim[:, 2],  label='Optimized (Yaw)',     color='r')
-    axs[2, 1].plot(eulers_q_motion[:, 2], label='Motion model (Yaw)',  color='g')
+    axs[0, 1].plot(eulers_q_optim[:, 0],  label='Optimized (Roll), ' + trackers[tr], color='r')
+    axs[1, 1].plot(eulers_q_optim[:, 1],  label='Optimized (Pitch), ' + trackers[tr], color='r')
+    axs[2, 1].plot(eulers_q_optim[:, 2],  label='Optimized (Yaw), ' + trackers[tr], color='r')
+
+    if plot_model:
+        axs[0, 1].plot(eulers_q_motion[:, 0], label='Motion model (Roll)', color='g')
+        axs[1, 1].plot(eulers_q_motion[:, 1], label='Motion model (Pitch)',color='g')
+        axs[2, 1].plot(eulers_q_motion[:, 2], label='Motion model (Yaw)',  color='g')
 
     if vicon_data is not None:
         axs[0, 1].plot(eulers_vicon[:, 0],    label='Vicon (Roll)',        color='b')

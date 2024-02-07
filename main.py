@@ -12,257 +12,112 @@
 # -------------------------------------------------------------------------
 
 import argparse
-import yaml
-import time
-from tqdm import tqdm
-from modules.pgd import optimize
-from modules.preprocessing import *
-from modules.panorama import build_panorama
-from modules.utils import save_plot, load_results
+from program_driver import *
+from modules.pgd import PGD
+from modules.kalman_filter import KalmanFilter
 
 from jax import config
 config.update("jax_enable_x64", True)
 
-def load_config(path_to_config):
-    """
-    Load the configuration file.
-
-    Args:
-        path_to_config (str): path to the configuration file.
-
-    Returns:
-        config (dict): the configuration file.
-    """
-    with open(path_to_config, "r") as f:
-        configs = yaml.safe_load(f)
-    return configs
-
 def main(path_to_config="config.yaml"):
     """
-    The main function to run the orientation tracking
-    algorithm.
-
-    Args:
-        path_to_config (str): path to the configuration file.
-
-    Returns:
-        None
     """
-    # load configs
-    config = load_config(path_to_config)
-    data_processing_constants = config["data_processing_constants"]
-    training_parameters = config["training_parameters"]
-    other_configs = config["other_configs"]
-    results_configs = config["results"]
-
-    # parse the arguments
     parser = argparse.ArgumentParser(description="Orientation tracking using IMU data.")
     parser.add_argument("mode", choices=["train", "test"], help="Mode to run the algorithm.")
+    parser.add_argument("--config", type=str, default="config.yaml", help="Path to the configuration file.")
+    parser.add_argument("--tracker", choices=["pgd", "kf"], default="pgd", help="Tracker to use.")
     parser.add_argument("--datasets", nargs="+", type=int, help="List of datasets to train and test the algorithm.")
     parser.add_argument("--plot_folder", type=str, help="Folder to save the plots.")
     parser.add_argument("--panorama_folder", type=str, help="Folder to save the panorama images.")
     parser.add_argument("--no_force_train", action="store_false", help="Force to train the algorithm even if the results are saved.")
     parser.add_argument("--use_vicon", action="store_true", help="Will use vicon data to generate panarama images if passed.")
 
-    MODE = None
     args = parser.parse_args()
-    if args.mode == "test":
-        other_configs["path_to_datasets"] = "data/testset/"
-        other_configs["datasets"] = [10, 11]
-        MODE = "test"
-    elif args.mode == "train":
-        other_configs["path_to_datasets"] = "data/trainset/"
-        MODE = "train"
-        if args.datasets:
-            other_configs["datasets"] = args.datasets
-    if args.plot_folder:
-        results_configs["plot_folder"] = args.plot_folder
-    if args.panorama_folder:
-        results_configs["panorama_folder"] = args.panorama_folder
-    other_configs["no_force_train"] = args.no_force_train
-    other_configs["use_vicon"] = args.use_vicon
 
-    print("==================================")
-    print("Loading datasets...")
-    print("==================================")
-    # load and process all IMU datasets
-    processed_imu_datasets = process_all_imu_datasets(
-        other_configs["path_to_datasets"],
-        other_configs["datasets"],
-        data_processing_constants["vref"],
-        data_processing_constants["acc_sensitivity"],
-        data_processing_constants["gyro_sensitivity"],
-        data_processing_constants["static_period"],
-        data_processing_constants["adc_max"]
-    )
+    configs = load_config(args.config)
+    configs = update_configs(configs, args)
 
-    # load all vicon datasets
-    if MODE == "train":
-        vicon_datasets = load_all_vicon_datasets(
-            other_configs["path_to_datasets"],
-            other_configs["datasets"]
-        )
-
-    # load all camera datasets
-    camera_datasets = load_all_camera_datasets(
-        other_configs["path_to_datasets"],
-        other_configs["datasets"]
-    )
-
-    q_optims, q_motion, a_estims, a_obsrvs, costs_record = {}, {}, {}, {}, {}
-
-    # Check if there are saved results in the results folder.
-    # If there are, don't do the optimization again.
-    if os.path.exists(results_configs["folder"]):
-        if not other_configs["no_force_train"]:
-            print("==================================")
-            print("Loading saved results...")
-            print("==================================")
-            start = time.time()
-
-            saved_results = check_files_exist(other_configs["datasets"], results_configs["folder"])
-            for dataset in other_configs["datasets"]:
-                if saved_results[dataset]:
-                    print(f"Dataset {dataset} has saved results, will be loaded.")
-                else:
-                    print(f"Dataset {dataset} doesn't have saved results, will be trained.")
-
-            results_fnames = [
-                results_configs["optimized_quaternion_fname"],
-                results_configs["motion_model_quaternion_fname"],
-                results_configs["acceleration_estimate_fname"],
-                results_configs["obsrv_model_fname"],
-                results_configs["costs_record_fname"]
-            ]
-
-            datasets_to_train = [] # datasets that need to be trained
-            for dataset in tqdm(other_configs["datasets"], desc="Loading saved results..."):
-                if saved_results[dataset]:
-                    for i, f in enumerate(results_fnames):
-                        fname = results_configs["folder"] + f + "_" + str(dataset) + ".npy"
-                        if os.path.exists(fname):
-                            if i == 0:
-                                q_optims[dataset] = load_results(fname)
-                            elif i == 1:
-                                q_motion[dataset] = load_results(fname)
-                            elif i == 2:
-                                a_estims[dataset] = load_results(fname)
-                            elif i == 3:
-                                a_obsrvs[dataset] = load_results(fname)
-                            elif i == 4:
-                                costs_record[dataset] = load_results(fname)
-                else:
-                    datasets_to_train.append(dataset)
-            end = time.time()
-            duration = end - start
-            minutes = int(duration // 60)
-            seconds = duration % 60
-            print(f"==========> ✅  Done! Took {minutes}m {seconds:.2f}s to load the results for {len(other_configs['datasets'])} datasets\n")
-        else:
-            datasets_to_train = other_configs["datasets"]
+    if args.mode == "train":
+        processed_imu_datasets, vicon_datasets, camera_datasets = load_datasets(configs, mode=args.mode)
     else:
-        datasets_to_train = other_configs["datasets"]
+        processed_imu_datasets, _, camera_datasets = load_datasets(configs, mode=args.mode)
 
+    q_optims, q_motion, a_optims, a_obsrvs = {}, {}, {}, {}
+
+    # Check if there are saved results in the results folder and if user wants to force the training.
+    datasets_to_train, q_optims, q_motion, a_optims, a_obsrvs = get_datasets_to_train(
+        configs, q_optims, q_motion, a_optims, a_obsrvs
+    )
+
+    # Run orientation tracking
     if datasets_to_train:
-        print("==================================")
-        print("Performing orientation tracking...")
-        print("==================================")
-        start = time.time()
-        for dataset in datasets_to_train:
-            print(f"==========> 🚀  Finding the optimal quaternions for dataset {dataset}")
-            q_opt, q_mot, a_est, a_obs, costs = optimize(
-                processed_imu_datasets[dataset],
-                step_size=training_parameters["step_size"],
-                num_iters=training_parameters["num_iterations"],
-                eps=training_parameters["eps_numerical_stability"]
-            )
-            q_optims[dataset]     = q_opt
-            q_motion[dataset]     = q_mot
-            a_estims[dataset]     = a_est
-            a_obsrvs[dataset]     = a_obs
-            costs_record[dataset] = costs
-        end = time.time()
-        duration = end - start
-        minutes = int(duration // 60)
-        seconds = duration % 60
-        print(f"==========> ✅  Done! Total duration for {len(other_configs['datasets'])} datasets: {minutes}m {seconds:.2f}s\n")
+        if args.tracker == "pgd":
+            training_parameters = configs["training_parameters"]
+            tracker = PGD(training_parameters)
+        elif args.tracker == "kf":
+            Q = np.array([[10 ** -4, 0, 0, 0],
+                          [0, 10 ** -4, 0, 0],
+                          [0, 0, 10 ** -4, 0],
+                          [0, 0, 0, 10 ** -4]])
 
-        print("==================================")
-        print("Saving results...")
-        print("==================================")
-        results = {
-            results_configs["optimized_quaternion_fname"]: q_optims,
-            results_configs["motion_model_quaternion_fname"]: q_motion,
-            results_configs["acceleration_estimate_fname"]: a_estims,
-            results_configs["obsrv_model_fname"]: a_obsrvs,
-            results_configs["costs_record_fname"]: costs_record
-        }
-        pbar = tqdm(results.items(), desc="==========> 📝  Saving results", unit="data")
-        for f, data in pbar:
-            save_results(data, f, results_configs["folder"])
-        print(f"==========> ✅  Done! All results saved to {results_configs['folder']}\n")
+            R = np.array([[10, 0, 0, 0],
+                          [0, 10, 0, 0],
+                          [0, 0, 10, 0],
+                          [0, 0, 0, 10]])
 
-    print("==================================")
-    print("Saving plots...")
-    print("==================================")
-    pbar = tqdm(other_configs["datasets"], desc="==========> 📊  Saving plots", unit="plot")
-    for dataset in pbar:
-        iter_start = time.time()
+            x0 = np.array(np.array([1., 0., 0., 0.]))
+            F = np.identity(4)
+            H = np.identity(4)
+            P = np.eye(4)
 
-        if MODE == "train":
-            save_plot(
-                q_optims[dataset],
-                q_motion[dataset],
-                a_estims[dataset],
-                a_obsrvs[dataset],
-                processed_imu_datasets[dataset]["accs"],
-                dataset,
-                other_configs["plot_figures_folder"],
-                vicon_datasets[dataset]
-            )
-        else:
-            save_plot(
-                q_optims[dataset],
-                q_motion[dataset],
-                a_estims[dataset],
-                a_obsrvs[dataset],
-                processed_imu_datasets[dataset]["accs"],
-                dataset,
-                other_configs["plot_figures_folder"]
-            )
+            tracker = KalmanFilter(x0, F, H, P, Q, R)
 
-        iter_end = time.time()
-        iter_duration = iter_end - iter_start
-
-        pbar.set_postfix(time=f"{iter_duration:.4f}s")
-    print(f"==========> ✅  Done! All plots saved to {other_configs['plot_figures_folder']}\n")
-
-    print("==================================")
-    print("Building panorama images...")
-    print("==================================")
-    panorama_image_record = {}
-    start = time.time()
-    for dataset in list(camera_datasets.keys()):
-        if other_configs["use_vicon"]:
-            R = np.concatenate((np.identity(3)[np.newaxis, :, :], vicon_datasets[dataset]["rots"]), axis=0)
-            ts = vicon_datasets[dataset]["ts"]
-            prefix = "vicon"
-        else:
-            R = np.array(quat2rot(np.vstack((np.array([1., 0., 0., 0.]), q_optims[dataset]))))
-            ts = processed_imu_datasets[dataset]["t_ts"]
-            prefix = "quaternion"
-        panorama_img = build_panorama(
-            camera_datasets[dataset],
-            R,
-            ts,
-            dataset,
-            prefix,
-            other_configs["panorama_images_folder"]
+        print("=====================================================")
+        print(f"Performing orientation tracking using {args.tracker}")
+        print("=====================================================")
+        q_optims, q_motion, a_optims, a_obsrvs = run_orientation_tracking(
+            tracker,
+            datasets_to_train,
+            processed_imu_datasets,
+            q_optims,
+            q_motion,
+            a_optims,
+            a_obsrvs
         )
-        panorama_image_record[dataset] = panorama_img
-    end = time.time()
-    duration = round(end - start, 2)
-    print(f"==========> ✅  Done (Took {duration}s)! All panorama images saved to {other_configs['panorama_images_folder']}")
+
+    # Save all the results
+    save_all_results(
+        args.tracker,
+        configs,
+        q_optims,
+        q_motion,
+        a_optims,
+        a_obsrvs
+    )
+
+    # Save all plots
+    if args.mode == "test":
+        vicon_datasets = None
+    plot_all_results(
+        args.tracker,
+        configs,
+        q_optims,
+        q_motion,
+        a_optims,
+        a_obsrvs,
+        processed_imu_datasets,
+        vicon_datasets,
+        configs["results"]["plot_model"]
+    )
+
+    # Build panorama images
+    build_panorama_images(
+        camera_datasets,
+        vicon_datasets,
+        processed_imu_datasets,
+        q_optims,
+        configs
+    )
 
 if __name__ == "__main__":
     main()
