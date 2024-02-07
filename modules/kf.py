@@ -63,7 +63,6 @@ class KalmanFilter:
         tau_ts = (t_ts[1:] - t_ts[:-1]).reshape(-1, 1)
 
         x_record = [self.x]
-        # use tqdm
         for i in tqdm(range(len(tau_ts))):
             F = self.get_F(w_ts[i], tau_ts[i])
             self.update_F(F)

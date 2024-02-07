@@ -14,18 +14,19 @@
 import argparse
 from program_driver import *
 from modules.pgd import PGD
-from modules.kalman_filter import KalmanFilter
+from modules.kf import KalmanFilter
+from modules.ekf import EKF
 
 from jax import config
 config.update("jax_enable_x64", True)
 
-def main(path_to_config="config.yaml"):
+def main():
     """
     """
     parser = argparse.ArgumentParser(description="Orientation tracking using IMU data.")
     parser.add_argument("mode", choices=["train", "test"], help="Mode to run the algorithm.")
     parser.add_argument("--config", type=str, default="config.yaml", help="Path to the configuration file.")
-    parser.add_argument("--tracker", choices=["pgd", "kf"], default="pgd", help="Tracker to use.")
+    parser.add_argument("--tracker", choices=["pgd", "kf", "ekf"], default="pgd", help="Tracker to use.")
     parser.add_argument("--datasets", nargs="+", type=int, help="List of datasets to train and test the algorithm.")
     parser.add_argument("--plot_folder", type=str, help="Folder to save the plots.")
     parser.add_argument("--panorama_folder", type=str, help="Folder to save the panorama images.")
@@ -71,6 +72,11 @@ def main(path_to_config="config.yaml"):
             P = np.eye(4)
 
             tracker = KalmanFilter(x0, F, H, P, Q, R)
+        elif args.tracker == "ekf":
+            raise NotImplementedError("EKF is not implemented yet.")
+        elif args.tracker == "ukf":
+            raise NotImplementedError("UKF is not implemented yet.")
+
 
         print("=====================================================")
         print(f"Performing orientation tracking using {args.tracker}")

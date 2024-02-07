@@ -158,6 +158,7 @@ def save_results(data: dict, f: str, folder_path: str, tr):
     trackers = {
         'pgd': 'PGD',
         'kf': 'KF',
+        'ekf': 'EKF',
     }
 
     # If folder does not exist, create it. But strip the last '/' first
@@ -228,6 +229,7 @@ def save_plot(
     trackers = {
         'pgd': 'PGD',
         'kf': 'KF',
+        'ekf': 'EKF',
     }
 
     filename = save_image_folder + 'dataset_' + str(dataset) + '_' + trackers[tr] + '.png'

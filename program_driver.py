@@ -141,6 +141,7 @@ def run_orientation_tracking(
             exp_term
         )
         # -----------------------------------------------------------------------------
+
         q_optims[dataset]     = q_optim
         a_optims[dataset]     = a_optim
     end = time.time()
