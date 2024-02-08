@@ -138,7 +138,7 @@ def check_files_exist(datasets, results_folder):
     for file in files:
         if file.endswith('.npy'):
             try:
-                d = int(file.split('_')[-1].split('.')[0])
+                d = int(file.split('_')[2])
                 if d in files_exist:
                     files_exist[d] = True
             except ValueError:

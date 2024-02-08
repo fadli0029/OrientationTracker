@@ -46,7 +46,7 @@ def main():
 
     # Check if there are saved results in the results folder and if user wants to force the training.
     datasets_to_train, q_optims, q_motion, a_optims, a_obsrvs = get_datasets_to_train(
-        configs, q_optims, q_motion, a_optims, a_obsrvs
+        configs, q_optims, q_motion, a_optims, a_obsrvs, args.tracker
     )
 
     # Run orientation tracking
@@ -82,19 +82,19 @@ def main():
     )
 
     # Save all plots
-    if args.mode == "test":
-        vicon_datasets = None
-    plot_all_results(
-        args.tracker,
-        configs,
-        q_optims,
-        q_motion,
-        a_optims,
-        a_obsrvs,
-        processed_imu_datasets,
-        vicon_datasets,
-        configs["results"]["plot_model"]
-    )
+    # if args.mode == "test":
+    #     vicon_datasets = None
+    # plot_all_results(
+    #     args.tracker,
+    #     configs,
+    #     q_optims,
+    #     q_motion,
+    #     a_optims,
+    #     a_obsrvs,
+    #     processed_imu_datasets,
+    #     vicon_datasets,
+    #     configs["results"]["plot_model"]
+    # )
 
     # Build panorama images
     build_panorama_images(

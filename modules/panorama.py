@@ -20,69 +20,47 @@ import matplotlib.pyplot as plt
 from transforms3d.quaternions import quat2mat
 from .utils import quat2rot
 
-def build_panorama(
-    camera_dataset: dict,
-    R,
-    t_ts,
-    dataset,
-    prefix,
-    panorama_images_folder_path,
-    tracker
-):
-    """
-    Create a panorama image from the camera dataset using the
-    optimized quaternion.
-
-    Args:
-        camera_dataset:              dict, the camera dataset, shape (N, H, W, 3)
-        q_optim:                     jnp.ndarray, shape (N, 4), the optimized quaternion
-        t_ts:                        jnp.ndarray, shape (N, ), the timestamps of IMU
-        dataset:                     str, the dataset name
-        panorama_images_folder_path: str, the folder path to save the panorama images
-
-    Returns:
-        jnp.ndarray, shape (H, W, 3), the panorama image
-    """
+def build_panorama(camera_dataset: dict, R, t_ts, dataset, prefix, panorama_images_folder_path, tracker):
     cam_imgs, cam_ts = camera_dataset['cam'], camera_dataset['ts']
     N, H, W, _ = cam_imgs.shape
 
-    uctr, vctr = H // 2, W // 2
-
-    horizontal_angle = 60.
-    vertical_angle = 45.
-
-    pan_H, pan_W = 720, 1080
-    panorama_image = np.zeros((pan_H+1, pan_W+1, 3), dtype=np.uint8)
-
-    V, U = np.meshgrid(np.arange(W), np.arange(H))
-
-    longitudes = (-(V - vctr) * horizontal_angle / W) * np.pi / 180.
-    latitudes = ((U - uctr) * vertical_angle / H) * np.pi / 180.
-
-    cartesian_coords = spherical2cartesian(longitudes, latitudes, 1.)
+    screen_height = 600
+    screen_width = int(np.ceil(2 * np.pi * 230)) + 2
+    offset_x = screen_width // 2
+    offset_y = screen_height // 2
+    canvas = np.zeros((screen_height, screen_width, 3), dtype=np.uint8)
 
     for i in tqdm(range(N)):
-        # Get closest-in-the-past timestamp
-        idx = np.where((cam_ts[i] - t_ts) > 0)[0][-1]
-        rot = R[idx]
-
-        cartesian_coords_rot = np.matmul(cartesian_coords, rot.T)
-        longitudes_rot, latitudes_rot = cartesian2spherical(cartesian_coords_rot)
-
-        # Convert to pixel coordinates
-        u_pixel = np.round(((longitudes_rot + np.pi/2) / np.pi) * pan_H).astype(np.int32)
-        v_pixel = np.round(((np.pi - latitudes_rot) / (2 * np.pi)) * pan_W).astype(np.int32)
-
-        if np.max(u_pixel) > pan_H or np.max(u_pixel) < 0 or np.min(u_pixel) < 0 or np.min(u_pixel) > pan_H:
-            continue
-        if np.max(v_pixel) > pan_W or np.max(v_pixel) < 0 or np.min(v_pixel) < 0 or np.min(v_pixel) > pan_W:
+        img_i = np.searchsorted(t_ts, cam_ts[i], side='right') - 1
+        if img_i >= len(R):
             continue
 
-        panorama_image[u_pixel, v_pixel] = np.copy(cam_imgs[i])
+        img = cam_imgs[i]
+        dcm = R[img_i]
+
+        x_img, y_img = np.meshgrid(np.arange(W) - W / 2, np.arange(H) - H / 2)
+        z_img = np.ones_like(x_img) * 230
+
+        pts_img = np.vstack((z_img.ravel(), -x_img.ravel(), -y_img.ravel()))
+        pts_img_rot = np.dot(dcm, pts_img)
+
+        a = np.arctan2(pts_img_rot[1], pts_img_rot[0])
+        b = np.arctan2(pts_img_rot[2], np.sqrt(pts_img_rot[0]**2 + pts_img_rot[1]**2))
+
+        proj_x = np.round(-230 * a + offset_x).astype(int)
+        proj_y = np.round(-230 * b + offset_y).astype(int)
+
+        # Ensure coordinates are within canvas bounds
+        valid_indices = (proj_x >= 0) & (proj_x < screen_width) & (proj_y >= 0) & (proj_y < screen_height)
+
+        # Convert to integer for indexing
+        img_x_indices = (x_img.ravel()[valid_indices] + W // 2).astype(int)
+        img_y_indices = (y_img.ravel()[valid_indices] + H // 2).astype(int)
+
+        canvas[proj_y[valid_indices], proj_x[valid_indices]] = img[img_y_indices, img_x_indices]
 
     # Save the panorama image
-    save_panorama_image(panorama_image, prefix, panorama_images_folder_path, dataset, tracker)
-    return panorama_image
+    save_panorama_image(canvas, prefix, panorama_images_folder_path, dataset, tracker)
 
 def spherical2cartesian(longitude, latitude, r=1.0):
     H, W = latitude.shape
@@ -116,7 +94,10 @@ def save_panorama_image(panorama_image, prefix, folder_path, dataset, tracker):
     # If the folder path does not exist, create the folder
     if not os.path.exists(os.path.dirname(folder_path)):
         os.makedirs(os.path.dirname(folder_path))
-    file_path = folder_path + prefix + "_" + str(dataset) + "_" + trackers[tracker] + ".png"
-    panorama_image = np.rot90(panorama_image, 1)
+    if prefix == "vicon":
+        file_path = folder_path + prefix + "_" + str(dataset) + ".png"
+    else:
+        file_path = folder_path + prefix + "_" + str(dataset) + "_" + trackers[tracker] + ".png"
+    # panorama_image = np.rot90(panorama_image, 1)
     plt.imsave(file_path, panorama_image)
     print(f"Panorama image saved to {file_path}\n")

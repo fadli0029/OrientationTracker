@@ -104,7 +104,6 @@ def build_panorama_images(
     duration = round(end - start, 2)
     print(f"==========> ✅  Done (Took {duration}s)! All panorama images saved to {other_configs['panorama_images_folder']}")
 
-
 def run_orientation_tracking(
     tracker,
     datasets_to_train,
@@ -232,10 +231,16 @@ def get_datasets_to_train(
     q_optims,
     q_motion,
     a_optims,
-    a_obsrvs
+    a_obsrvs,
+    tracker
 ):
     other_configs = configs["other_configs"]
     results_configs = configs["results"]
+
+    trackers = {
+        'pgd': 'PGD',
+        'ekf': 'EKF',
+    }
 
     datasets_to_train = [] # datasets that need to be trained
     if os.path.exists(results_configs["folder"]):
@@ -262,7 +267,7 @@ def get_datasets_to_train(
             for dataset in tqdm(other_configs["datasets"], desc="Loading saved results..."):
                 if saved_results[dataset]:
                     for i, f in enumerate(results_fnames):
-                        fname = results_configs["folder"] + f + "_" + str(dataset) + ".npy"
+                        fname = results_configs["folder"] + f + "_" + str(dataset) + "_" + trackers[tracker] + ".npy"
                         if os.path.exists(fname):
                             if i == 0:
                                 q_optims[dataset] = load_results(fname)
