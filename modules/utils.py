@@ -157,7 +157,6 @@ def save_results(data: dict, f: str, folder_path: str, tr):
     """
     trackers = {
         'pgd': 'PGD',
-        'kf': 'KF',
         'ekf': 'EKF',
     }
 
@@ -228,7 +227,6 @@ def save_plot(
 
     trackers = {
         'pgd': 'PGD',
-        'kf': 'KF',
         'ekf': 'EKF',
     }
 

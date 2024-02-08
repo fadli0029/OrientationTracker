@@ -71,7 +71,8 @@ def build_panorama_images(
     vicon_datasets,
     processed_imu_datasets,
     q_optims,
-    configs
+    configs,
+    tracker
 ):
     other_configs = configs["other_configs"]
 
@@ -95,7 +96,8 @@ def build_panorama_images(
             ts,
             dataset,
             prefix,
-            other_configs["panorama_images_folder"]
+            other_configs["panorama_images_folder"],
+            tracker
         )
         panorama_image_record[dataset] = panorama_img
     end = time.time()
@@ -141,7 +143,6 @@ def run_orientation_tracking(
             exp_term
         )
         # -----------------------------------------------------------------------------
-
         q_optims[dataset]     = q_optim
         a_optims[dataset]     = a_optim
     end = time.time()

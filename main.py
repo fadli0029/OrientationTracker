@@ -14,7 +14,6 @@
 import argparse
 from program_driver import *
 from modules.pgd import PGD
-from modules.kf import KalmanFilter
 from modules.ekf import EKF
 
 from jax import config
@@ -26,7 +25,7 @@ def main():
     parser = argparse.ArgumentParser(description="Orientation tracking using IMU data.")
     parser.add_argument("mode", choices=["train", "test"], help="Mode to run the algorithm.")
     parser.add_argument("--config", type=str, default="config.yaml", help="Path to the configuration file.")
-    parser.add_argument("--tracker", choices=["pgd", "kf", "ekf"], default="pgd", help="Tracker to use.")
+    parser.add_argument("--tracker", choices=["pgd", "ekf"], default="pgd", help="Tracker to use.")
     parser.add_argument("--datasets", nargs="+", type=int, help="List of datasets to train and test the algorithm.")
     parser.add_argument("--plot_folder", type=str, help="Folder to save the plots.")
     parser.add_argument("--panorama_folder", type=str, help="Folder to save the panorama images.")
@@ -55,27 +54,8 @@ def main():
         if args.tracker == "pgd":
             training_parameters = configs["training_parameters"]
             tracker = PGD(training_parameters)
-        elif args.tracker == "kf":
-            Q = np.array([[10 ** -4, 0, 0, 0],
-                          [0, 10 ** -4, 0, 0],
-                          [0, 0, 10 ** -4, 0],
-                          [0, 0, 0, 10 ** -4]])
-
-            R = np.array([[10, 0, 0, 0],
-                          [0, 10, 0, 0],
-                          [0, 0, 10, 0],
-                          [0, 0, 0, 10]])
-
-            x0 = np.array(np.array([1., 0., 0., 0.]))
-            F = np.identity(4)
-            H = np.identity(4)
-            P = np.eye(4)
-
-            tracker = KalmanFilter(x0, F, H, P, Q, R)
         elif args.tracker == "ekf":
-            raise NotImplementedError("EKF is not implemented yet.")
-        elif args.tracker == "ukf":
-            raise NotImplementedError("UKF is not implemented yet.")
+            tracker = EKF()
 
 
         print("=====================================================")
@@ -122,7 +102,8 @@ def main():
         vicon_datasets,
         processed_imu_datasets,
         q_optims,
-        configs
+        configs,
+        args.tracker
     )
 
 if __name__ == "__main__":
