@@ -11,45 +11,25 @@ class EKF:
     """
     def __init__(
         self,
-        q_noise_init=1.0e-6,
-        gyro_noise_init=1.0e-6,
-        gyro_noise=[3.732e-8, 3.732e-8, 3.732e-8],
-        gyro_bias_drift=[1.0e-9, 1.0e-9, 1.0e-9],
-        acc_noise=[1.125e-5, 1.125e-5, 4.5e-5]
+        q_noise = 1.0e-2,
+        gyro_noise=100,
+        acc_noise=0.1,
+        gyro_bias_drif_init = 1.0e-7,
+        gyro_bias_drift = 1.0e-7
     ):
         """
         The noises are taken from datasheet.
         """
         self.x = np.array([1., 0., 0., 0., 0., 0., 0.])
 
-        gyro_noise=[0.0006109**2, 0.0006109**2, 0.0006109**2]
-        gyro_bias_drift=[3.0e-7, 3.0e-7, 5.0e-7]
-        acc_noise=[1.0, 1.0, 1.0]
-        d = 3.0 # debugging
-        acc_noise = [d * x for x in acc_noise]
-
-        self.R = np.array([
-            [acc_noise[0], 0., 0.],
-            [0., acc_noise[1], 0.],
-            [0., 0., acc_noise[2]]
-        ])
-
         self.P = np.zeros((7, 7))
-        self.P[:4, :4] = np.eye(4) * q_noise_init
-        self.P[4:7, 4:7] = np.eye(3) * gyro_noise_init
-
-        self.Q = np.array([
-            [gyro_noise[0], 0., 0.],
-            [0., gyro_noise[1], 0.],
-            [0., 0., gyro_noise[2]]
-        ])
+        self.P[:4, :4] = np.identity(4) * q_noise
+        self.P[4:7, 4:7] = np.identity(3) * gyro_bias_drif_init
+        self.Q = np.identity(3) * gyro_noise
+        self.R = np.identity(3) * acc_noise
 
         self.Q_bias = np.zeros((7, 7))
-        self.Q_bias[4:7, 4:7] = np.array([
-            [gyro_bias_drift[0], 0., 0.],
-            [0., gyro_bias_drift[1], 0.],
-            [0., 0., gyro_bias_drift[2]]
-        ])
+        self.Q_bias[4:7, 4:7] = np.identity(3) * gyro_bias_drift
 
     def run(self, data, q_mot, exp_term):
         """
@@ -87,16 +67,18 @@ class EKF:
 
         z_t: (3,) - Accelerometer measurements
         """
+        # normalize z
+        z_t = z_t / np.linalg.norm(z_t)
+
         H = self.H_mat(self.x)
         V = self.V_mat(self.x)
         S = H @ self.P @ H.T + V @ self.R @ V.T
-        K = self.P @ H.T @ np.linalg.inv(S)
+        K = (self.P @ H.T) @ np.linalg.inv(S)
 
         self.x = self.x + K @ (z_t - self.h_func(self.x))
         self.x[:4] = self.x[:4] / np.linalg.norm(self.x[:4])
 
         self.P = (np.eye(7) - K @ H) @ self.P
-
 
     def f_func(self, x_t, w_t, tau_t):
         """
@@ -109,12 +91,49 @@ class EKF:
         q, b = x_t[:4], x_t[4:]
         q = q / np.linalg.norm(q)
 
-        dw_t = ((w_t - b) * tau_t)*0.5
-        qw_t = np.array([1, dw_t[0], dw_t[1], dw_t[2]])
+        dw_t = (w_t - b) * tau_t
+        theta = np.linalg.norm(dw_t)
+        u = dw_t / np.linalg.norm(dw_t)
+
+        # define taylor expansion of sin and cos
+        # to avoid division by zero
+        if theta < 1e-6:
+            qw_t = np.array([
+                1,
+                0.5*dw_t[0],
+                0.5*dw_t[1],
+                0.5*dw_t[2]
+            ])
+        else:
+            qw_t = np.array([
+                np.cos(theta/2),
+                u[0]*np.sin(theta/2),
+                u[1]*np.sin(theta/2),
+                u[2]*np.sin(theta/2)
+            ])
+
         qdot = qmult(q, qw_t)
         qdot = qdot / np.linalg.norm(qdot)
 
         return np.concatenate([qdot, b])
+
+    # def f_func(self, x_t, w_t, tau_t):
+    #     """
+    #     Process model.
+
+    #     x_t: (7,)
+    #     w_t: (3,)
+    #     tau_t: float
+    #     """
+    #     q, b = x_t[:4], x_t[4:]
+    #     q = q / np.linalg.norm(q)
+
+    #     dw_t = ((w_t - b) * tau_t)*0.5
+    #     qw_t = np.array([1, dw_t[0], dw_t[1], dw_t[2]])
+    #     qdot = qmult(q, qw_t)
+    #     qdot = qdot / np.linalg.norm(qdot)
+
+    #     return np.concatenate([qdot, b])
 
     def h_func(self, x):
         """
@@ -212,22 +231,23 @@ class EKF:
         wx, wy, wz = w_t
 
         W = np.zeros((7, 3))
-        W[0, 0] = -0.5*tau_t*qx
-        W[0, 1] = -0.5*tau_t*qy
-        W[0, 2] = -0.5*tau_t*qz
+        W[0, 0] = -qx*tau_t
+        W[0, 1] = -qy*tau_t
+        W[0, 2] = -qz*tau_t
 
-        W[1, 0] = 0.5*tau_t*qw
-        W[1, 1] = -0.5*tau_t*qz
-        W[1, 2] = 0.5*tau_t*qy
+        W[1, 0] = qw*tau_t
+        W[1, 1] = -qz*tau_t
+        W[1, 2] = qy*tau_t
 
-        W[2, 0] = 0.5*tau_t*qz
-        W[2, 1] = 0.5*tau_t*qw
-        W[2, 2] = -0.5*tau_t*qx
+        W[2, 0] = qz*tau_t
+        W[2, 1] = qw*tau_t
+        W[2, 2] = -qx*tau_t
 
-        W[3, 0] = -0.5*tau_t*qy
-        W[3, 1] = 0.5*tau_t*qx
-        W[3, 2] = 0.5*tau_t*qw
+        W[3, 0] = -qy*tau_t
+        W[3, 1] = qx*tau_t
+        W[3, 2] = qw*tau_t
 
+        W = W * 0.5
         return W
 
     def V_mat(self, x_t):

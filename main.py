@@ -13,8 +13,6 @@
 
 import argparse
 from program_driver import *
-from modules.pgd import PGD
-from modules.ekf import EKF
 
 from jax import config
 config.update("jax_enable_x64", True)
@@ -25,7 +23,7 @@ def main():
     parser = argparse.ArgumentParser(description="Orientation tracking using IMU data.")
     parser.add_argument("mode", choices=["train", "test"], help="Mode to run the algorithm.")
     parser.add_argument("--config", type=str, default="config.yaml", help="Path to the configuration file.")
-    parser.add_argument("--tracker", choices=["pgd", "ekf"], default="pgd", help="Tracker to use.")
+    parser.add_argument("--tracker", choices=["pgd", "ekf7", "ekf4"], default="pgd", help="Tracker to use.")
     parser.add_argument("--datasets", nargs="+", type=int, help="List of datasets to train and test the algorithm.")
     parser.add_argument("--plot_folder", type=str, help="Folder to save the plots.")
     parser.add_argument("--panorama_folder", type=str, help="Folder to save the panorama images.")
@@ -33,6 +31,14 @@ def main():
     parser.add_argument("--use_vicon", action="store_true", help="Will use vicon data to generate panarama images if passed.")
 
     args = parser.parse_args()
+
+    # Import the appropriate tracker
+    if args.tracker == "ekf7":
+        from modules.ekf_7states import EKF
+    elif args.tracker == "ekf4":
+        from modules.ekf_4states import EKF
+    elif args.tracker == "pgd":
+        from modules.pgd import PGD
 
     configs = load_config(args.config)
     configs = update_configs(configs, args)
@@ -54,9 +60,8 @@ def main():
         if args.tracker == "pgd":
             training_parameters = configs["training_parameters"]
             tracker = PGD(training_parameters)
-        elif args.tracker == "ekf":
+        else:
             tracker = EKF()
-
 
         print("=====================================================")
         print(f"Performing orientation tracking using {args.tracker}")
@@ -82,19 +87,19 @@ def main():
     )
 
     # Save all plots
-    # if args.mode == "test":
-    #     vicon_datasets = None
-    # plot_all_results(
-    #     args.tracker,
-    #     configs,
-    #     q_optims,
-    #     q_motion,
-    #     a_optims,
-    #     a_obsrvs,
-    #     processed_imu_datasets,
-    #     vicon_datasets,
-    #     configs["results"]["plot_model"]
-    # )
+    if args.mode == "test":
+        vicon_datasets = None
+    plot_all_results(
+        args.tracker,
+        configs,
+        q_optims,
+        q_motion,
+        a_optims,
+        a_obsrvs,
+        processed_imu_datasets,
+        vicon_datasets,
+        configs["results"]["plot_model"]
+    )
 
     # Build panorama images
     build_panorama_images(

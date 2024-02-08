@@ -86,14 +86,22 @@ def save_panorama_image(panorama_image, prefix, folder_path, dataset, tracker):
         panorama_image: jnp.ndarray, shape (H, W, 3), the panorama image
         file_path:      str, the file path to save the panorama image
     """
+
+
     trackers = {
         'pgd': 'PGD',
-        'ekf': 'EKF',
+        'ekf7': 'EKF7state',
+        'ekf4': 'EKF4state',
     }
 
     # If the folder path does not exist, create the folder
     if not os.path.exists(os.path.dirname(folder_path)):
         os.makedirs(os.path.dirname(folder_path))
+
+    # check if folder path ends with '/', if not, add '/'
+    if folder_path[-1] != '/':
+        folder_path += '/'
+
     if prefix == "vicon":
         file_path = folder_path + prefix + "_" + str(dataset) + ".png"
     else:

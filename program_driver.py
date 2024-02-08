@@ -16,9 +16,9 @@ def update_configs(configs, args):
     configs["other_configs"]["no_force_train"] = args.no_force_train
     configs["other_configs"]["use_vicon"] = args.use_vicon
     if args.plot_folder:
-        configs["results"]["plot_folder"] = args.plot_folder
+        configs["other_configs"]["plot_figures_folder"] = args.plot_folder
     if args.panorama_folder:
-        configs["results"]["panorama_folder"] = args.panorama_folder
+        configs["other_configs"]["panorama_images_folder"] = args.panorama_folder
 
     if args.mode == "test":
         configs["other_configs"]["path_to_datasets"] = "data/testset/"
@@ -122,11 +122,15 @@ def run_orientation_tracking(
         w_ts = processed_imu_datasets[dataset]["gyro"]
         t_ts = processed_imu_datasets[dataset]["t_ts"]
 
-        # Initialize the quaternions and initial quaternions and acceleration
-        # from model dynamics
-        q_mot = jnp.zeros((w_ts.shape[0], 4), dtype=jnp.float64)
-        q_mot = q_mot.at[:, 0].set(1.)
-        q_mot, exp_term = motion_model(q_mot, w_ts, t_ts)
+        tr = tracker.__class__.__name__.lower()
+        if tr == "pgd":
+            q_mot = jnp.zeros((w_ts.shape[0], 4), dtype=jnp.float64)
+            q_mot = q_mot.at[:, 0].set(1.)
+            q_mot, exp_term = motion_model(q_mot, w_ts, t_ts)
+        else:
+            q_mot = jnp.zeros((w_ts.shape[0], 4), dtype=jnp.float64)
+            q_mot = q_mot.at[:, 0].set(1.)
+            exp_term = None
         a_obs = observation_model(q_mot)
 
         # Save the initial quaternions and initial acceleration estimate
@@ -239,7 +243,8 @@ def get_datasets_to_train(
 
     trackers = {
         'pgd': 'PGD',
-        'ekf': 'EKF',
+        'ekf7': 'EKF7state',
+        'ekf4': 'EKF4state',
     }
 
     datasets_to_train = [] # datasets that need to be trained
