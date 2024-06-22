@@ -2,10 +2,10 @@
 
 <table>
   <tr>
-    <td><img src="gifs/pgd_dataset3.gif"   width="200"></td>
-    <td><img src="gifs/ekf4_dataset3.gif"  width="200"></td>
-    <td><img src="gifs/ekf7_dataset3.gif"  width="200"></td>
-    <td><img src="gifs/vicon_dataset3.gif" width="200"></td>
+    <td><img src="gifs/pgd_dataset3.gif"   width="150"></td>
+    <td><img src="gifs/ekf4_dataset3.gif"  width="150"></td>
+    <td><img src="gifs/ekf7_dataset3.gif"  width="150"></td>
+    <td><img src="gifs/vicon_dataset3.gif" width="150"></td>
   </tr>
   <tr>
     <td align="center">PGD</td>
