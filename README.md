@@ -1,3 +1,20 @@
+# Robust Orientation Tracking for Panoramic Stitching: Projected Gradient Descent vs. Extended Kalman Filters
+
+<table>
+  <tr>
+    <td><img src="gifs/pgd_dataset3.gif"   width="200"></td>
+    <td><img src="gifs/ekf4_dataset3.gif"  width="200"></td>
+    <td><img src="gifs/ekf7_dataset3.gif"  width="200"></td>
+    <td><img src="gifs/vicon_dataset3.gif" width="200"></td>
+  </tr>
+  <tr>
+    <td align="center">PGD</td>
+    <td align="center">EKF4</td>
+    <td align="center">EKF7</td>
+    <td align="center">VICON</td>
+  </tr>
+</table>
+
 ### Basic commands to run the program (Quick Start)
 1. The command below will run on test mode, i.e: find the optimal quaternions on datasets 10 and 11, save the results, plot the results, and build panorama images.
 ```shell
