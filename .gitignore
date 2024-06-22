@@ -5,3 +5,5 @@ __pycache__/
 data/
 *.ipynb
 results/
+panorama_images/
+plot_images/
