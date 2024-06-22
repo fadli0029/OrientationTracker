@@ -17,7 +17,7 @@ To use a different tracker, you can run the following command:
 ```shell
 python main.py train --tracker <tracker_name>
 ```
-where `<tracker_name>` is one of `pgd` (default), `ekf7` (7-state EKF), or `ekf4` (4-state EKF).
+where `<tracker_name>` is one of `pgd` (default, projected gradient descent), `ekf7` (7-state EKF), or `ekf4` (4-state EKF).
 
 ### Optional command line arguments for train mode
 1. `--datasets` (only for training mode): List of datasets to train on.
